@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { after } from 'next/server';
 import { createJob } from '@/lib/jobs';
-import { enqueueJob } from '@/lib/pipeline/worker';
+import { runPipelineWorker } from '@/lib/pipeline/worker';
 
 export const maxDuration = 60; // Allow Vercel lambda to run up to 60s for background tasks
 
@@ -21,9 +21,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Failed to create job in database' }, { status: 500 });
     }
 
-    // Add to the queue and explicitly tell Vercel to wait for it via `after`
-    after(() => {
-      enqueueJob(jobId, message, token).catch(console.error);
+    // Explicitly tell Vercel to wait for the worker via `after`
+    after(async () => {
+      await runPipelineWorker(jobId, message, token);
     });
 
     return NextResponse.json({ jobId });

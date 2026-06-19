@@ -13,7 +13,7 @@ All notable changes to the Motif UGC Video Generator will be documented in this 
 - **Custom App Favicon**: Added a sleek, modern, neon-green "M" app icon to replace the default Vercel/Next.js logo.
 
 ### Fixed
-- **Vercel Serverless Background Job Terminations**: Implemented Next.js's new `after()` API and explicitly set `export const maxDuration = 60;` across all generation endpoints. This explicitly forces Vercel's ephemeral serverless instances to stay alive until the background AI pipeline completely finishes, solving infinite loading states in the deployed production app.
+- **Vercel Serverless Background Job Terminations**: Completely bypassed the broken Node.js in-memory queue which failed in serverless environments. Implemented Next.js's new `after()` API to directly `await` the pipeline worker, and explicitly set `export const maxDuration = 60;`. This forces Vercel's ephemeral instances to stay alive until the video generation is fully complete, solving the "In queue..." infinite hanging bug in production.
 - **Supabase Row-Level Security Bug**: Fixed a critical bug where the background queue worker was silently failing to save AI output to the database because it lacked the user's authentication token. The token is now safely passed through the queue to authorize updates.
 - **Gemini Free-tier Rate Limits & API Speeds**: Refactored the backend architecture to merge "product extraction" and "concept generation" into a single LLM prompt, cutting Google API usage perfectly in half.
 - **Repeated Video Assets**: Updated the Pexels and Giphy API fetching logic to request `limit=15` results instead of `limit=1`, and randomly select from the pool. This introduces massive visual variety even for similar AI queries.

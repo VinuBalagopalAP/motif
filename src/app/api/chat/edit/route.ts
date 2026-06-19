@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { after } from 'next/server';
 import { updateJobStatus, getJob } from '@/lib/jobs';
-import { enqueueJob } from '@/lib/pipeline/worker';
+import { runPipelineWorker } from '@/lib/pipeline/worker';
 
 export const maxDuration = 60; // Allow Vercel lambda to run up to 60s for background tasks
 
@@ -33,8 +33,8 @@ export async function POST(req: Request) {
     }, token);
 
     // Re-enqueue the job with the new message
-    after(() => {
-      enqueueJob(jobId, message, token).catch(console.error);
+    after(async () => {
+      await runPipelineWorker(jobId, message, token);
     });
 
     return NextResponse.json({ success: true });

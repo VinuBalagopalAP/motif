@@ -37,7 +37,7 @@ async function processQueue() {
 }
 
 // A deterministic state machine that mimics a queue worker.
-async function runPipelineWorker(jobId: string, message: string, token?: string) {
+export async function runPipelineWorker(jobId: string, message: string, token?: string) {
   try {
     // State: planning
     logPipelineStep(jobId, 'PLANNING', `Extracting URL from message: "${message}"`);
