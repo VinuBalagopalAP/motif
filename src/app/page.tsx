@@ -94,7 +94,10 @@ export default function ChatApp() {
   }, [user]);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const main = document.getElementById("chat-main");
+    if (main) {
+      main.scrollTo({ top: main.scrollHeight, behavior: "smooth" });
+    }
   };
 
   useEffect(() => {
@@ -149,7 +152,7 @@ export default function ChatApp() {
     const userMessage: Message = { id: Date.now().toString(), role: "user", content: prompt };
     const assistantMessage: Message = { id: (Date.now() + 1).toString(), role: "assistant", content: "" };
     
-    setMessages([userMessage, assistantMessage]); // Start fresh on submit
+    setMessages(prev => [...prev, userMessage, assistantMessage]);
     setInput("");
     setLoading(true);
 
@@ -160,15 +163,30 @@ export default function ChatApp() {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${session.access_token}`
         },
-        body: JSON.stringify({ message: prompt, userId: user.id })
+        body: JSON.stringify({ 
+          message: prompt, 
+          userId: user.id,
+          history: messages.map(m => ({ 
+            role: m.role, 
+            content: m.role === 'assistant' ? (m.job?.product_json?.chat_reply || "Generated a video.") : m.content 
+          }))
+        })
       });
       const data = await res.json();
       
-      setMessages(prev => prev.map(m => 
-        m.id === assistantMessage.id ? { ...m, jobId: data.jobId } : m
-      ));
-      
-      fetchHistory();
+      if (data.isChat) {
+        setMessages(prev => prev.map(m => 
+          m.id === assistantMessage.id ? { 
+            ...m, 
+            job: { status: 'done', product_json: { chat_reply: data.reply } } as any 
+          } : m
+        ));
+      } else {
+        setMessages(prev => prev.map(m => 
+          m.id === assistantMessage.id ? { ...m, jobId: data.jobId } : m
+        ));
+        fetchHistory(); // Only fetch history for UGC video jobs
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -277,7 +295,7 @@ export default function ChatApp() {
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
             </svg>
-            New Video
+            New Chat
           </button>
         </div>
         
@@ -330,7 +348,7 @@ export default function ChatApp() {
           <h1 className="text-lg font-semibold text-[#282828]">Motif</h1>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-8 pb-48">
+        <main id="chat-main" className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-8 pb-48">
           <div className="max-w-4xl mx-auto space-y-8 mt-4">
             {messages.length === 0 ? (
               <div className="text-center mt-32 relative z-10">
@@ -432,12 +450,21 @@ export default function ChatApp() {
                               </button>
                             </div>
                           </div>
+                        ) : m.job?.status === 'done' && m.job.product_json?.chat_reply ? (
+                          <div className="bg-white text-[#282828] rounded-[24px] px-6 py-4 font-medium text-sm border border-gray-100 shadow-sm w-fit max-w-[80%]">
+                            <p className="whitespace-pre-wrap leading-relaxed">{m.job.product_json.chat_reply}</p>
+                          </div>
                         ) : m.job?.status === 'error' ? (
                           <div className="bg-red-50 text-red-600 rounded-[16px] p-4 text-sm flex items-center gap-3 font-medium border border-red-100">
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                             </svg>
                             <span>Error: {m.job.error}</span>
+                          </div>
+                        ) : m.job?.status === 'started' || m.job?.status === 'queued' || !m.job ? (
+                          <div className="bg-white text-[#757575] rounded-[24px] px-6 py-4 font-medium text-sm border border-gray-100 shadow-sm w-fit max-w-[80%] flex items-center gap-2">
+                            <div className="w-4 h-4 border-2 border-gray-200 border-t-[#08c225] rounded-full animate-spin"></div>
+                            Thinking...
                           </div>
                         ) : (
                           <div className="relative overflow-hidden bg-[#f9f9fa] border border-gray-100 rounded-[24px] w-[320px] h-[569px] flex flex-col items-center justify-center mt-2">
@@ -447,8 +474,7 @@ export default function ChatApp() {
                             <div className="relative z-10 flex flex-col items-center gap-4">
                               <div className="w-10 h-10 border-2 border-gray-200 border-t-[#08c225] rounded-full animate-spin"></div>
                               <div className="text-sm font-medium text-[#757575]">
-                                {m.job?.status === 'queued' ? 'In queue...' : 
-                                 m.job?.status === 'scraping' ? 'Analyzing source...' :
+                                {m.job?.status === 'scraping' ? 'Analyzing source...' :
                                  m.job?.status === 'planning' ? 'Generating assets...' :
                                  'Rendering video...'}
                               </div>

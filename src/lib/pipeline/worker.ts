@@ -4,6 +4,7 @@ import { scrapeSite } from './scrapeSite';
 import { generateConcept } from './generateConcepts';
 import { pickAssets } from './pickAssets';
 import { logPipelineStep, logError } from './logger';
+import { classifyMessage } from './classifyMessage';
 
 
 
@@ -29,7 +30,7 @@ async function processQueue() {
   const job = jobQueue.shift();
   if (job) {
     logPipelineStep(job.jobId, 'QUEUE', `Started processing job from queue (remaining: ${jobQueue.length})`);
-    await runPipelineWorker(job.jobId, job.message, job.token);
+    await runPipelineWorker(job.jobId, job.message, job.token, (job as any).history);
   }
   
   // Process the next job in the queue
@@ -37,8 +38,22 @@ async function processQueue() {
 }
 
 // A deterministic state machine that mimics a queue worker.
-export async function runPipelineWorker(jobId: string, message: string, token?: string) {
+export async function runPipelineWorker(jobId: string, message: string, token?: string, history: any[] = [], classification?: any) {
   try {
+    if (!classification) {
+      logPipelineStep(jobId, 'PLANNING', `Classifying message intent: "${message}"`);
+      classification = await classifyMessage(message, history);
+    }
+    
+    if (classification.type === 'chat') {
+      logPipelineStep(jobId, 'DONE', `Message classified as chat. Sending reply.`);
+      await updateJobStatus(jobId, { 
+        status: 'done', 
+        product_json: { chat_reply: classification.reply || "Hello! I can help you generate UGC videos. Just provide a product URL." }
+      }, token);
+      return;
+    }
+
     // State: planning
     logPipelineStep(jobId, 'PLANNING', `Extracting URL from message: "${message}"`);
     await updateJobStatus(jobId, { status: 'planning' }, token);

@@ -24,6 +24,12 @@ Integrated with a PostgreSQL database via **Supabase**.
 - Background workers safely execute database updates by temporarily assuming the user's secure authentication token, preventing silent permission drops.
 - Polling mechanism instantly streams live UI updates (e.g., "Scraping site", "Writing hooks").
 
+### 💬 Context-Aware Conversational Interface
+The app features an intelligent chat layer that evaluates user intent before deciding to create a video.
+- **Intent Classification**: Uses Gemini to determine if a user is just chatting or requesting a video. If they just say "hi", it replies naturally without generating a video.
+- **Context Retention**: Maintains full chat history across the session, allowing natural conversational flows.
+- **Sidebar Organization**: Pure chat interactions bypass the database entirely, ensuring your "Library" sidebar only populates with actual video generation tasks.
+
 ### 📱 Responsive & Premium UI
 Built with vanilla CSS to ensure absolute structural control. Features a beautiful dark mode aesthetic, smooth micro-animations, glassmorphism elements, and full mobile-responsiveness (hiding the sidebar and adjusting controls natively). Includes a custom-designed Motif favicon.
 
@@ -31,8 +37,9 @@ Built with vanilla CSS to ensure absolute structural control. Features a beautif
 
 ## 🛠️ The Generation Pipeline
 
-1. **Extraction**: Regex cleanly extracts the URL from the user's free-text prompt.
-2. **Scraping**: Fetches live `<title>`, `<meta>`, and `<h1>`/`<p>` tags from the target site.
+1. **Intent Classification**: The LLM evaluates if the message is a casual chat or a video request. Chat messages are resolved synchronously and bypass the DB.
+2. **Extraction**: Regex cleanly extracts the URL from the user's free-text prompt.
+3. **Scraping**: Fetches live `<title>`, `<meta>`, and `<h1>`/`<p>` tags from the target site.
 3. **Concept Generation**: Gemini receives the scraped data and constructs a JSON payload containing the viral hook text, visual queries, and audio vibes.
 4. **Asset Selection**: The server concurrently hits Pexels, Giphy, and iTunes to assemble the visual and auditory layers. 
 5. **Rendering**: The client UI natively mounts the resulting JSON payload into the Remotion Player.
