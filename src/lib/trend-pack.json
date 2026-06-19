@@ -1,0 +1,75 @@
+{
+  "updatedAt": "2026-06-19",
+  "hooks": [
+    "me pretending i have this under control",
+    "when the app does the thing i was avoiding",
+    "not me realizing this actually solved it",
+    "me acting like I know my macros",
+    "when the codebase is 100k lines",
+    "me acting like a wall street pro"
+  ],
+  "audioMoods": ["smug", "suspense", "clean-hype", "chill", "hype"],
+  "gifReactions": ["side-eye", "smirk", "mind-blown", "confused-guy", "shocked"],
+  "backgrounds": [
+    {
+      "query": "modern gym interior vertical",
+      "url": "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=1080&auto=format&fit=crop"
+    },
+    {
+      "query": "healthy meal close up vertical",
+      "url": "https://images.unsplash.com/photo-1490645935967-10de6ba17061?q=80&w=1080&auto=format&fit=crop"
+    },
+    {
+      "query": "night kitchen cinematic",
+      "url": "https://images.unsplash.com/photo-1556910103-1c02745a872f?q=80&w=1080&auto=format&fit=crop"
+    },
+    {
+      "query": "office desk laptop vertical",
+      "url": "https://images.unsplash.com/photo-1498050108023-c5249f4df085?q=80&w=1080&auto=format&fit=crop"
+    }
+  ],
+  "gifs": [
+    {
+      "query": "smirk",
+      "url": "https://media.giphy.com/media/V1dH38rUl9yX7xU8nh/giphy.gif"
+    },
+    {
+      "query": "mind-blown",
+      "url": "https://media.giphy.com/media/xT0xeJpnrWC4XWblWQ/giphy.gif"
+    },
+    {
+      "query": "shocked",
+      "url": "https://media.giphy.com/media/3o7527pa7qs9kCG78A/giphy.gif"
+    },
+    {
+      "query": "side-eye",
+      "url": "https://media.giphy.com/media/H5C8CevNMbpBqNqFjl/giphy.gif"
+    },
+    {
+      "query": "confused-guy",
+      "url": "https://media.giphy.com/media/l3q2K5jinAlChoCLS/giphy.gif"
+    }
+  ],
+  "audios": [
+    {
+      "mood": "chill",
+      "url": "https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Sample-files/master/sample.mp3"
+    },
+    {
+      "mood": "hype",
+      "url": "https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Sample-files/master/sample.mp3"
+    },
+    {
+      "mood": "smug",
+      "url": "https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Sample-files/master/sample.mp3"
+    },
+    {
+      "mood": "suspense",
+      "url": "https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Sample-files/master/sample.mp3"
+    },
+    {
+      "mood": "clean-hype",
+      "url": "https://raw.githubusercontent.com/rafaelreis-hotmart/Audio-Sample-files/master/sample.mp3"
+    }
+  ]
+}
