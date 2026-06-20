@@ -13,8 +13,10 @@ type Message = {
   id: string;
   role: "user" | "assistant";
   content: string;
+  type?: string;
   jobId?: string;
   job?: Job;
+  attachments?: { url: string; type: string; name: string }[];
 };
 
 export default function ChatApp() {
@@ -30,9 +32,13 @@ export default function ChatApp() {
   const [editInput, setEditInput] = useState("");
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
+  const [attachments, setAttachments] = useState<{ url: string; type: string; name: string }[]>([]);
+  const [uploadingFiles, setUploadingFiles] = useState(false);
+  
   const params = useParams();
   const initialChatIdLoaded = useRef(false);
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Authentication check
@@ -97,6 +103,43 @@ export default function ChatApp() {
     }
   }, [user]);
 
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    
+    setUploadingFiles(true);
+    try {
+      const newAttachments: { name: string, type: string, url: string }[] = [];
+      for (const file of files) {
+        const ext = file.name.split('.').pop();
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`;
+        
+        const { data, error } = await supabase.storage
+          .from('chat-attachments')
+          .upload(fileName, file);
+          
+        if (error) {
+          console.error('Upload error:', error);
+          continue;
+        }
+        
+        const { data: { publicUrl } } = supabase.storage
+          .from('chat-attachments')
+          .getPublicUrl(data.path);
+          
+        newAttachments.push({
+          name: file.name,
+          type: file.type,
+          url: publicUrl
+        });
+      }
+      setAttachments(prev => [...prev, ...newAttachments]);
+    } finally {
+      setUploadingFiles(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   // Initial load from URL
   useEffect(() => {
     if (user && historyJobs.length > 0 && !initialChatIdLoaded.current) {
@@ -111,8 +154,9 @@ export default function ChatApp() {
               id: `hist-${job.id}-${i}`,
               role: msg.role,
               content: msg.content || '',
+              type: msg.type,
               jobId: msg.type === 'video' ? job.id : undefined,
-              job: msg.type === 'video' ? { ...job, status: 'done', render_spec_json: msg.render_spec } : (msg.type === 'chat' ? { status: 'done', product_json: { chat_reply: msg.content, sources: msg.sources } } : undefined)
+              job: msg.type === 'video' ? { ...job, status: 'done', render_spec_json: msg.render_spec } : (msg.role === 'assistant' ? { status: 'done', product_json: { chat_reply: msg.content, sources: msg.sources } } : undefined)
             }));
             setMessages(historyMessages);
           } else {
@@ -185,9 +229,12 @@ export default function ChatApp() {
   }, [messages, session]);
 
   const runGeneration = async (prompt: string) => {
-    if (!prompt.trim() || !user || !session || loading) return;
+    if ((!prompt.trim() && attachments.length === 0) || !user || !session || loading || uploadingFiles) return;
 
-    const userMessage: Message = { id: Date.now().toString(), role: "user", content: prompt };
+    const currentAttachments = [...attachments];
+    setAttachments([]);
+
+    const userMessage: Message = { id: Date.now().toString(), role: "user", content: prompt, attachments: currentAttachments.length > 0 ? currentAttachments : undefined };
     const assistantMessage: Message = { id: (Date.now() + 1).toString(), role: "assistant", content: "" };
     
     setMessages(prev => [...prev, userMessage, assistantMessage]);
@@ -205,9 +252,12 @@ export default function ChatApp() {
           message: prompt, 
           userId: user.id,
           chatId: activeChatId,
+          attachments: currentAttachments.length > 0 ? currentAttachments : undefined,
           history: messages.map(m => ({ 
             role: m.role, 
-            content: m.role === 'assistant' ? (m.job?.product_json?.chat_reply || "Generated a video.") : m.content 
+            type: m.type || (m.role === 'assistant' ? (m.job?.product_json?.chat_reply ? 'chat' : 'video') : undefined),
+            content: m.role === 'assistant' ? (m.job?.product_json?.chat_reply || "Generated a video.") : m.content,
+            attachments: m.attachments 
           }))
         })
       });
@@ -310,8 +360,9 @@ export default function ChatApp() {
         id: `hist-${job.id}-${i}`,
         role: msg.role,
         content: msg.content || '',
+        type: msg.type,
         jobId: msg.type === 'video' ? job.id : undefined,
-        job: msg.type === 'video' ? { ...job, status: 'done', render_spec_json: msg.render_spec } : (msg.type === 'chat' ? { status: 'done', product_json: { chat_reply: msg.content, sources: msg.sources } } : undefined)
+        job: msg.type === 'video' ? { ...job, status: 'done', render_spec_json: msg.render_spec } : (msg.role === 'assistant' ? { status: 'done', product_json: { chat_reply: msg.content, sources: msg.sources } } : undefined)
       }));
       setMessages(historyMessages);
     } else {
@@ -451,6 +502,19 @@ export default function ChatApp() {
                           </div>
                         ) : (
                           <>
+                            {m.attachments && m.attachments.length > 0 && (
+                              <div className="flex flex-wrap gap-2 mb-3">
+                                {m.attachments.map((att, i) => (
+                                  <div key={i} className="w-32 h-32 rounded-xl border border-gray-200 overflow-hidden bg-white">
+                                    {att.type.startsWith('image/') ? (
+                                      <a href={att.url} target="_blank" rel="noopener noreferrer"><img src={att.url} alt={att.name} className="w-full h-full object-cover" /></a>
+                                    ) : (
+                                      <a href={att.url} target="_blank" rel="noopener noreferrer" className="w-full h-full flex items-center justify-center p-2 text-xs text-gray-500 font-medium break-all text-center hover:bg-gray-50">{att.name}</a>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                             <p className="whitespace-pre-wrap leading-relaxed pr-8">{m.content}</p>
                             <button 
                               onClick={() => { setEditingMsgId(m.id); setEditInput(m.content); }}
@@ -621,40 +685,85 @@ export default function ChatApp() {
 
         <footer className="absolute bottom-0 w-full p-3 sm:p-6 pointer-events-none bg-gradient-to-t from-white via-white to-transparent pt-20">
           <div className="max-w-4xl mx-auto relative pointer-events-auto">
-            <div className="bg-white rounded-[24px] shadow-[0_8px_30px_rgba(0,0,0,0.06)] border border-gray-200 p-2 transition-shadow focus-within:shadow-[0_8px_40px_rgba(0,0,0,0.1)] focus-within:border-gray-300 relative">
-              <form onSubmit={handleSubmit} className="relative flex items-end">
-                <textarea
-                  value={input}
-                  onChange={(e) => {
-                    setInput(e.target.value);
-                    e.target.style.height = 'auto';
-                    e.target.style.height = Math.min(e.target.scrollHeight, 200) + 'px';
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSubmit(e);
-                    }
-                  }}
-                  placeholder={isGenerating ? "Generating..." : "Message or paste a link..."}
-                  className={`w-full bg-transparent pl-4 pr-16 py-3 max-h-[200px] min-h-[44px] resize-none focus:outline-none text-[#282828] placeholder-gray-400 font-medium text-[15px] ${isGenerating ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  disabled={loading || isGenerating}
-                  rows={1}
+            <div className="bg-white rounded-[24px] shadow-[0_8px_30px_rgba(0,0,0,0.06)] border border-gray-200 transition-shadow focus-within:shadow-[0_8px_40px_rgba(0,0,0,0.1)] focus-within:border-gray-300 overflow-hidden relative">
+              <form onSubmit={handleSubmit} className="relative flex flex-col">
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  className="hidden" 
+                  multiple 
+                  accept="image/*,application/pdf" 
+                  onChange={handleFileChange} 
                 />
-                <button 
-                  type="submit"
-                  disabled={loading || !input.trim() || isGenerating}
-                  className="absolute right-2 bottom-1.5 text-white bg-[#08c225] hover:bg-[#00b33c] rounded-[16px] w-10 h-10 flex items-center justify-center disabled:opacity-40 disabled:hover:bg-[#08c225] transition-all duration-200"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 10.5 12 3m0 0 7.5 7.5M12 3v18" />
-                  </svg>
-                </button>
+                
+                {attachments.length > 0 && (
+                  <div className="flex gap-3 p-4 overflow-x-auto border-b border-gray-100 bg-gray-50/50 items-center">
+                    {attachments.map((att, i) => (
+                      <div key={i} className="relative group flex-shrink-0 w-16 h-16 rounded-xl bg-white border border-gray-200 overflow-hidden flex items-center justify-center shadow-sm">
+                        {att.type.startsWith('image/') ? (
+                          <img src={att.url} alt={att.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="text-[9px] font-bold text-[#282828] break-all p-2 text-center uppercase tracking-wide">{att.name.split('.').pop()}</div>
+                        )}
+                        <button 
+                          type="button"
+                          onClick={() => setAttachments(prev => prev.filter((_, idx) => idx !== i))}
+                          className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm hover:bg-red-600"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3"><path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" /></svg>
+                        </button>
+                      </div>
+                    ))}
+                    {uploadingFiles && (
+                      <div className="w-16 h-16 rounded-xl bg-white border border-gray-200 flex items-center justify-center shadow-sm flex-shrink-0">
+                         <div className="w-5 h-5 border-2 border-gray-200 border-t-[#08c225] rounded-full animate-spin"></div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div className="relative flex items-end w-full p-2">
+                  <button 
+                    type="button" 
+                    onClick={() => fileInputRef.current?.click()} 
+                    className="absolute left-2 bottom-2 text-gray-400 hover:text-[#282828] w-9 h-9 flex items-center justify-center hover:bg-gray-100 rounded-xl transition-all"
+                    title="Attach image or PDF"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364l10.94-10.94A3 3 0 1119.5 7.372L8.552 18.32m.009-.01l-.01.01m5.699-9.941l-7.81 7.81a1.5 1.5 0 002.112 2.13" /></svg>
+                  </button>
+                  <textarea
+                    value={input}
+                    onChange={(e) => {
+                      setInput(e.target.value);
+                      e.target.style.height = 'auto';
+                      e.target.style.height = Math.min(e.target.scrollHeight, 200) + 'px';
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSubmit(e);
+                      }
+                    }}
+                    placeholder={isGenerating ? "Generating..." : uploadingFiles ? "Uploading..." : "Message or paste a link..."}
+                    className={`w-full bg-transparent pl-12 pr-16 py-[14px] max-h-[200px] min-h-[52px] resize-none focus:outline-none text-[#282828] placeholder-gray-400 font-medium text-[15px] leading-relaxed scrollbar-hide [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] ${isGenerating || uploadingFiles ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    disabled={loading || isGenerating || uploadingFiles}
+                    rows={1}
+                  />
+                  <button 
+                    type="submit"
+                    disabled={loading || (!input.trim() && attachments.length === 0) || isGenerating || uploadingFiles}
+                    className="absolute right-3 bottom-2 text-white bg-[#08c225] hover:bg-[#00b33c] rounded-xl w-9 h-9 flex items-center justify-center disabled:opacity-40 disabled:hover:bg-[#08c225] transition-all duration-200 shadow-sm"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-[18px] h-[18px]">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 10.5 12 3m0 0 7.5 7.5M12 3v18" />
+                    </svg>
+                  </button>
+                </div>
               </form>
             </div>
             <div className="text-center mt-3 mb-1">
               <span className="text-[#757575] text-[11px] font-medium tracking-wide">
-                Motif Beta
+                Motif Beta v1.1.0
               </span>
             </div>
           </div>

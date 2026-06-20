@@ -27,6 +27,7 @@ Integrated with a PostgreSQL database via **Supabase**.
 ### 💬 Threaded Chat Sessions
 The app features a fully threaded, ChatGPT-style chat interface that seamlessly blends pure text conversation with complex video generation tasks.
 - **Intent Classification**: Uses Gemini to dynamically determine if a message is casual chat or a video request on every single turn.
+- **Deep Multimodality**: Users can upload images and PDFs to give the AI visual and document context natively processed by Claude 3.5 Sonnet and Gemini 2.5 Flash.
 - **Persistent Normal Chats**: All normal conversations are permanently saved to your Library as active threads.
 - **In-Chat Video Generation**: Requesting a video inside an ongoing chat drops the generated Remotion video player directly inline within the conversation feed, without breaking the session.
 - **Perfect Session Rehydration**: Clicking a thread from the sidebar instantly reconstructs your entire conversation history, re-rendering all text bubbles and inline video players perfectly.

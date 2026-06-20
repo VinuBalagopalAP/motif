@@ -2,7 +2,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import Anthropic from '@anthropic-ai/sdk';
 import { logApiHit, incrementGeminiCount } from './logger';
 
-export async function classifyMessage(message: string, history: any[] = []): Promise<{ type: 'chat' | 'ugc'; reply?: string }> {
+export async function classifyMessage(message: string, history: any[] = [], attachments: any[] = []): Promise<{ type: 'chat' | 'ugc'; reply?: string }> {
   const keys = [
     process.env.GEMINI_API_KEY,
     process.env.GEMINI_API_KEY_2,
@@ -39,10 +39,34 @@ Respond strictly with a JSON object in this format (no markdown code blocks):
     try {
       const anthropic = new Anthropic({ apiKey: process.env.CLAUDE_API });
       logApiHit('Claude API (classifyMessage)', 1);
+
+      const contentBlocks: Anthropic.ContentBlockParam[] = [];
+      if (attachments && attachments.length > 0) {
+        for (const att of attachments) {
+          try {
+            const res = await fetch(att.url);
+            if (res.ok) {
+              const arrayBuffer = await res.arrayBuffer();
+              const base64 = Buffer.from(arrayBuffer).toString('base64');
+              if (att.type.startsWith('image/')) {
+                contentBlocks.push({ type: 'image', source: { type: 'base64', media_type: att.type as any, data: base64 } });
+              } else if (att.type === 'application/pdf') {
+                contentBlocks.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } });
+              }
+            }
+          } catch (e) {
+            console.error('Failed to fetch attachment for Claude:', e);
+          }
+        }
+      }
+      contentBlocks.push({ type: 'text', text: prompt });
+
       const msg = await anthropic.messages.create({
         model: "claude-sonnet-4-6",
         max_tokens: 1024,
-        messages: [{ role: "user", content: prompt }]
+        messages: [{ role: "user", content: contentBlocks }],
+        // @ts-ignore
+        betas: ["pdfs-2024-09-25"]
       });
       const text = (msg.content[0] as any).text.replace(/\`\`\`json/g, "").replace(/\`\`\`/g, "").trim();
       return JSON.parse(text);
@@ -61,7 +85,25 @@ Respond strictly with a JSON object in this format (no markdown code blocks):
       const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
       const currentCallCount = incrementGeminiCount();
       logApiHit('Gemini API (classifyMessage)', currentCallCount);
-      const result = await model.generateContent(prompt);
+
+      const geminiParts: any[] = [];
+      if (attachments && attachments.length > 0) {
+        for (const att of attachments) {
+          try {
+            const res = await fetch(att.url);
+            if (res.ok) {
+              const arrayBuffer = await res.arrayBuffer();
+              const base64 = Buffer.from(arrayBuffer).toString('base64');
+              geminiParts.push({ inlineData: { data: base64, mimeType: att.type } });
+            }
+          } catch (e) {
+            console.error('Failed to fetch attachment for Gemini:', e);
+          }
+        }
+      }
+      geminiParts.push(prompt);
+
+      const result = await model.generateContent(geminiParts);
       const text = result.response.text().replace(/\`\`\`json/g, "").replace(/\`\`\`/g, "").trim();
       return JSON.parse(text);
     } catch (err: any) {

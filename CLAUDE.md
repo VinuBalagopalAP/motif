@@ -29,7 +29,7 @@ Required env vars in `.env.local` (see README for full list):
 The server never runs FFmpeg (deliberate — it crashes inside Vercel's serverless limits). Instead the pipeline assembles a plain JSON `RenderSpec` (interface defined in `src/lib/jobs.ts`) describing background video/image, overlay text, GIF overlay, and audio. The client mounts this spec into `<Player>` (`@remotion/player`) using the `UgcVideo` component (`src/remotion/UgcVideo.tsx`), rendering at 60fps in-browser. Any change to the spec shape must be kept in sync across `jobs.ts` (interface), `pickAssets.ts` (producer), and `UgcVideo.tsx` (consumer).
 
 ### Request flow
-1. Client (`src/app/page.tsx`) POSTs to `/api/chat` with `message`, `userId`, `history`, optional `chatId`, and a Supabase `Authorization: Bearer <token>` header.
+1. Client (`src/app/page.tsx`) POSTs to `/api/chat` with `message`, `userId`, `history`, optional `attachments` (array of Supabase `chat-attachments` public URLs), optional `chatId`, and a Supabase `Authorization: Bearer <token>` header.
 2. `/api/chat/route.ts` runs `classifyMessage` **synchronously** to decide `chat` vs `ugc`.
    - **chat**: runs the web-capable `runChatAgent` (`chatAgent.ts`, see below), resolved immediately, appended to history (with `sources`), persisted, returned in the same response (no background work).
    - **ugc**: kicks off `runPipelineWorker` via Next's `after()` and returns a `jobId` for polling.

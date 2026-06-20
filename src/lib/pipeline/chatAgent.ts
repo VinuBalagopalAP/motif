@@ -14,22 +14,67 @@ export interface ChatAgentResult {
 // Converts the app's chat_history (free-form objects) into Anthropic message turns.
 // User turns -> user text. Assistant chat turns -> assistant text. Assistant video
 // turns (no text) -> a short placeholder so the conversation stays coherent.
-function toAnthropicMessages(history: any[], message: string): Anthropic.MessageParam[] {
+async function fetchAsBase64(url: string): Promise<string | null> {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const arrayBuffer = await res.arrayBuffer();
+    return Buffer.from(arrayBuffer).toString('base64');
+  } catch (e) {
+    console.error('Failed to fetch attachment:', e);
+    return null;
+  }
+}
+
+async function toAnthropicMessages(history: any[], message: string, newAttachments: any[] = []): Promise<Anthropic.MessageParam[]> {
   const messages: Anthropic.MessageParam[] = [];
 
   for (const turn of history) {
     if (turn.role === 'user') {
       const text = (turn.content || '').trim();
-      if (text) messages.push({ role: 'user', content: text });
+      const atts = turn.attachments || [];
+      
+      if (atts.length > 0) {
+        const contentBlocks: Anthropic.ContentBlockParam[] = [];
+        for (const att of atts) {
+          const base64 = await fetchAsBase64(att.url);
+          if (base64) {
+            if (att.type.startsWith('image/')) {
+              contentBlocks.push({ type: 'image', source: { type: 'base64', media_type: att.type as any, data: base64 } });
+            } else if (att.type === 'application/pdf') {
+              contentBlocks.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } });
+            }
+          }
+        }
+        if (text) contentBlocks.push({ type: 'text', text });
+        if (contentBlocks.length > 0) messages.push({ role: 'user', content: contentBlocks });
+      } else if (text) {
+        messages.push({ role: 'user', content: text });
+      }
     } else if (turn.role === 'assistant') {
-      const text = turn.type === 'video'
-        ? '[Generated a video]'
-        : (turn.content || '').trim();
+      const text = turn.type === 'video' ? '[Generated a video]' : (turn.content || '').trim();
       if (text) messages.push({ role: 'assistant', content: text });
     }
   }
 
-  messages.push({ role: 'user', content: message });
+  if (newAttachments && newAttachments.length > 0) {
+    const contentBlocks: Anthropic.ContentBlockParam[] = [];
+    for (const att of newAttachments) {
+      const base64 = await fetchAsBase64(att.url);
+      if (base64) {
+        if (att.type.startsWith('image/')) {
+          contentBlocks.push({ type: 'image', source: { type: 'base64', media_type: att.type as any, data: base64 } });
+        } else if (att.type === 'application/pdf') {
+          contentBlocks.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } });
+        }
+      }
+    }
+    if (message.trim()) contentBlocks.push({ type: 'text', text: message.trim() });
+    if (contentBlocks.length > 0) messages.push({ role: 'user', content: contentBlocks });
+  } else {
+    messages.push({ role: 'user', content: message });
+  }
+
   return messages;
 }
 
@@ -79,12 +124,12 @@ function extractSources(content: Anthropic.ContentBlock[]): ChatSource[] {
  * Returns null when CLAUDE_API is unset or Claude errors, so the caller can fall back
  * to the Gemini reply (no web access), mirroring classifyMessage/generateConcepts.
  */
-export async function runChatAgent(message: string, history: any[] = []): Promise<ChatAgentResult | null> {
+export async function runChatAgent(message: string, history: any[] = [], attachments: any[] = []): Promise<ChatAgentResult | null> {
   if (!process.env.CLAUDE_API) return null;
 
   try {
     const anthropic = new Anthropic({ apiKey: process.env.CLAUDE_API });
-    const messages = toAnthropicMessages(history, message);
+    const messages = await toAnthropicMessages(history, message, attachments);
 
     const tools: any[] = [
       { type: 'web_search_20260209', name: 'web_search', max_uses: 5 },
@@ -99,6 +144,8 @@ export async function runChatAgent(message: string, history: any[] = []): Promis
       system: SYSTEM_PROMPT,
       tools,
       messages,
+      // @ts-ignore
+      betas: ["pdfs-2024-09-25"]
     });
 
     // Server tools run an internal loop; if it hits the iteration cap the turn pauses.
@@ -112,6 +159,8 @@ export async function runChatAgent(message: string, history: any[] = []): Promis
         system: SYSTEM_PROMPT,
         tools,
         messages,
+        // @ts-ignore
+        betas: ["pdfs-2024-09-25"]
       });
       continuations++;
     }

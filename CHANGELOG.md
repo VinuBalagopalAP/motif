@@ -2,7 +2,28 @@
 
 All notable changes to the Motif UGC Video Generator will be documented in this file.
 
-## [v1.01] - 2026-06-20
+## [1.1.0] - 2026-06-20
+
+### Added
+- **Multimodal Support**: Users can now upload images and PDFs alongside their messages to give the AI visual and document context.
+- **Supabase Storage Integration**: Uploaded files are securely stored in the new `chat-attachments` bucket and accessed via public URLs to keep the chat history database extremely lightweight.
+- **Anthropic PDF & Vision Parsing**: Enabled the `pdfs-2024-09-25` beta flag for the `claude-3-5-sonnet` model, allowing it to natively read and analyze attached PDFs and images.
+- **Gemini Vision Fallback**: Configured Gemini 2.5 Flash to accept inline base64 image data to parse uploaded visuals if Claude is unavailable.
+- **Attachment Preview UI**: A sleek preview bar above the chat input allows users to see thumbnails of their images or PDFs before hitting send.
+- **Next.js Optional Catch-all Routing**: Chat URLs are now dynamic (e.g., `/c/[chatId]`). The browser URL instantly updates when switching chats using shallow history pushes, enabling instant bookmarking and sharing without full page reloads.
+
+### Changed
+- Refactored `runGeneration` in the frontend to include file attachments in the `POST /api/chat` request body.
+- Rewrote the Anthropic history serializer (`toAnthropicMessages`) to convert Supabase image URLs into raw Base64 buffers directly on the server before hitting the LLMs.
+- Updated `classifyMessage` to support parsing image context to intelligently determine whether the user wants to generate UGC or just chat.
+
+### Fixed
+- Fixed an issue where the `betas` parameter was passed in the JSON body instead of HTTP headers for the Anthropic SDK.
+- Fixed a rendering issue where loading old chat histories caused missing `type` properties, resulting in a stuck "Thinking..." loading skeleton.
+- Removed the native scrollbar from the textarea input to eliminate ugly UI artifacts.
+- Fixed an alignment bug in the prompt input field where the upload button awkwardly overlapped the placeholder text.
+
+## [1.0.1] - 2026-06-20
 
 ### Added
 - **Threaded Chat Sessions**: Overhauled the core architecture to support a true ChatGPT-style threaded interface without requiring database schema migrations. A single `video_job` now acts as an entire chat session, storing full conversational history in a nested JSON array.
@@ -12,7 +33,7 @@ All notable changes to the Motif UGC Video Generator will be documented in this 
 - **Automated API Key Rotation**: Built a resilient fallback mechanism that seamlessly cycles through up to 4 Gemini API keys (`GEMINI_API_KEY` to `GEMINI_API_KEY_4`). If the free-tier rate limit (15 requests per minute) is exceeded, the system catches the `429` error and instantly reroutes the request to the next available key to prevent pipeline crashes.
 
 
-## [v1.00] - 2026-06-20
+## [1.0.0] - 2026-06-20
 
 ### Added
 - **In-place Prompt Editing**: Users can now click the edit icon on their chat bubble to modify the prompt and instantly regenerate the video in-place, without creating duplicate video entries in the library.
