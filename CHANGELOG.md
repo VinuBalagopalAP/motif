@@ -2,6 +2,26 @@
 
 All notable changes to the Motif UGC Video Generator will be documented in this file.
 
+## [1.2.0] - 2026-06-21
+
+### Added
+- **Web-Capable Agentic Chat**: Fully integrated Anthropic Tool-Use to empower the chat agent with live web-searching capabilities. The assistant can now browse the internet to find data, fetch articles, and ground answers in reality, citing its sources automatically.
+- **Artifact Rendering System**: The UI now supports rendering rich `<artifact>` tags directly inline. Code blocks, markdown documents, and complex reports are beautifully formatted using `react-syntax-highlighter` instead of plain text dumps.
+- **Social Sharing Ecosystem**: Added the ability to instantly share your conversations publicly! You can choose to share the *entire* chat history via a new top-right button, or share *only a specific message snippet* using the in-message toolbar.
+- **Manage Shared Links Dashboard**: A new dedicated dashboard in the sidebar allows you to securely track, copy, and instantly disable/delete your active public share links.
+- **Variant Regeneration Engine**: Clicking "Regenerate" no longer spam-creates an infinitely long chat. It intelligently regenerates the exact message in-place. Users can page through historical variants using intuitive `< 1 / 2 >` navigation arrows.
+- **Feedback Mechanism**: Added a Thumbs Up/Down rating system directly attached to the UI variants. Feedback is automatically persisted to the database, uniquely mapped to each specific variant index for high-quality data collection.
+- **Keyboard Shortcuts**: Power users can now explicitly use `Cmd + Enter` (Mac) or `Ctrl + Enter` (Windows) to instantly submit prompts from the text area.
+
+### Changed
+- Refactored the `/api/share` endpoint to intelligently deduplicate shares. Pressing share multiple times on an active chat syncs the existing database row rather than polluting it with duplicates.
+- Updated `layout.tsx` to explicitly define `metadataBase` to ensure OpenGraph previews map perfectly to shared links.
+
+### Fixed
+- **Safari Squeeze Bug**: Fixed a scrolling bug specific to Safari/WebKit where `padding-bottom` on overflowing containers is ignored, causing long chats to slide underneath the floating input box. Replaced the CSS padding with a guaranteed physical DOM spacer block.
+- **Sidebar Animation**: Eliminated a jerky, layout-thrashing double-animation on the collapsible sidebar by refactoring it to use a perfectly smooth `width` layout shift on Desktop.
+- Handled Next.js client/server mismatch errors by injecting `suppressHydrationWarning` on the root layout.
+
 ## [1.1.0] - 2026-06-20
 
 ### Added

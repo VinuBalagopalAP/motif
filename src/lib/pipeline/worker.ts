@@ -38,7 +38,7 @@ async function processQueue() {
 }
 
 // A deterministic state machine that mimics a queue worker.
-export async function runPipelineWorker(jobId: string, message: string, token?: string, history: any[] = [], classification?: any) {
+export async function runPipelineWorker(jobId: string, message: string, token?: string, history: any[] = [], classification?: any, assistantMessage?: any) {
   try {
     if (!classification) {
       logPipelineStep(jobId, 'PLANNING', `Classifying message intent: "${message}"`);
@@ -92,11 +92,18 @@ export async function runPipelineWorker(jobId: string, message: string, token?: 
     console.dir(renderSpec, { depth: null, colors: true });
     console.log(`\x1b[36m--------------------------------------------------\x1b[0m\n`);
 
-    const finalHistory = [...history, { 
-      role: 'assistant', 
-      type: 'video', 
-      render_spec: renderSpec 
-    }];
+    let finalHistory = [...history];
+    
+    if (assistantMessage) {
+      assistantMessage.variants.push({ type: 'video', render_spec: renderSpec });
+      finalHistory.push(assistantMessage);
+    } else {
+      finalHistory.push({ 
+        role: 'assistant', 
+        type: 'video', 
+        render_spec: renderSpec 
+      });
+    }
 
     await updateJobStatus(jobId, { 
       status: 'done', 

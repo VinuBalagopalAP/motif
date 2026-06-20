@@ -86,6 +86,14 @@ Behave like a capable general assistant (think ChatGPT, Claude, or Kimi):
 - You can research a topic across multiple sources and then lay out a clear, structured plan or summary.
 - Always ground factual claims in what you found, and let the citations speak for your sources.
 
+ARTIFACTS (CRITICAL):
+If the user asks you to write code, build a React component, generate a long document, or create a standalone data table, you MUST wrap the content in an XML artifact block.
+Format:
+<artifact identifier="unique-id-like-filename" type="code | react | markdown | document" title="Human Readable Title">
+  // Your code or markdown content here
+</artifact>
+Do not use markdown code blocks inside the artifact tag if the artifact is already code. Just put the raw content inside the XML tag. You can still use markdown outside the artifact for conversational text.
+
 Only mention that Motif can generate UGC videos if the user explicitly asks what you do or how you can help. For casual small talk (e.g. "hi", "how are you"), just chat naturally without searching the web or mentioning videos.`;
 
 // Extracts {url, title} pairs from the citations attached to the assistant's text blocks.
@@ -128,7 +136,10 @@ export async function runChatAgent(message: string, history: any[] = [], attachm
   if (!process.env.CLAUDE_API) return null;
 
   try {
-    const anthropic = new Anthropic({ apiKey: process.env.CLAUDE_API });
+    const anthropic = new Anthropic({ 
+      apiKey: process.env.CLAUDE_API,
+      defaultHeaders: { 'anthropic-beta': 'pdfs-2024-09-25' }
+    });
     const messages = await toAnthropicMessages(history, message, attachments);
 
     const tools: any[] = [
@@ -143,9 +154,7 @@ export async function runChatAgent(message: string, history: any[] = [], attachm
       max_tokens: 4096,
       system: SYSTEM_PROMPT,
       tools,
-      messages,
-      // @ts-ignore
-      betas: ["pdfs-2024-09-25"]
+      messages
     });
 
     // Server tools run an internal loop; if it hits the iteration cap the turn pauses.
@@ -158,9 +167,7 @@ export async function runChatAgent(message: string, history: any[] = [], attachm
         max_tokens: 4096,
         system: SYSTEM_PROMPT,
         tools,
-        messages,
-        // @ts-ignore
-        betas: ["pdfs-2024-09-25"]
+        messages
       });
       continuations++;
     }

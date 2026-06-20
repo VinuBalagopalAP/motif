@@ -4,8 +4,8 @@ A highly optimized, serverless Next.js application that automatically generates 
 
 ## 🌟 Key Features
 
-### 🧠 Unshackled LLM Logic
-Powered by Gemini 2.5 Flash, the AI acts as a creative director. It scrapes the target website, analyzes the product, and invents **custom, dynamic search queries** for the background video, GIF reaction, and background music. It no longer relies on hardcoded datasets.
+### 🧠 Web-Capable Agent & Unshackled Logic
+Powered by Gemini 2.5 Flash and Claude 3.5 Sonnet, the AI acts as a creative director and web-researcher. It features fully integrated Anthropic Tool-Use capabilities, allowing it to autonomously browse the internet, cite live sources, and scrape websites to invent custom, dynamic video concepts without relying on hardcoded datasets.
 
 ### ⚡ Parallelized Media Fetching
 The pipeline simultaneously fetches assets from multiple APIs using `Promise.all` to significantly boost speed:
@@ -30,7 +30,15 @@ The app features a fully threaded, ChatGPT-style chat interface that seamlessly 
 - **Deep Multimodality**: Users can upload images and PDFs to give the AI visual and document context natively processed by Claude 3.5 Sonnet and Gemini 2.5 Flash.
 - **Persistent Normal Chats**: All normal conversations are permanently saved to your Library as active threads.
 - **In-Chat Video Generation**: Requesting a video inside an ongoing chat drops the generated Remotion video player directly inline within the conversation feed, without breaking the session.
-- **Perfect Session Rehydration**: Clicking a thread from the sidebar instantly reconstructs your entire conversation history, re-rendering all text bubbles and inline video players perfectly.
+- **Variant Regeneration & Feedback**: Don't like a generation? Hit Regenerate to spawn variants in-place, and use `< >` arrows to page through them seamlessly. Provide Thumbs Up/Down feedback mapped directly to the active variant.
+- **Rich Artifacts**: Code blocks, complex data, and markdown documents are beautifully rendered using a custom XML artifact system with `react-syntax-highlighter`.
+- **Perfect Session Rehydration**: Clicking a thread from the sidebar instantly reconstructs your entire conversation history, re-rendering all text bubbles, variants, and inline video players perfectly.
+
+### 🔗 Social Sharing Ecosystem
+Your chats are built for virality.
+- Share an **isolated message snippet** or an **entire conversation history** with one click.
+- Links are automatically deduplicated and synced in real-time.
+- Manage your privacy using the built-in **Shared Links Dashboard** to copy URLs or revoke public access instantly.
 
 ### 📱 Responsive & Premium UI
 Built with vanilla CSS to ensure absolute structural control. Features a beautiful dark mode aesthetic, smooth micro-animations, glassmorphism elements, and full mobile-responsiveness (hiding the sidebar and adjusting controls natively). Includes a custom-designed Motif favicon.
@@ -61,6 +69,7 @@ npm install
 ```env
 NEXT_PUBLIC_SUPABASE_URL=...
 NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+CLAUDE_API=...
 GEMINI_API_KEY=...
 GEMINI_API_KEY_2=...
 GEMINI_API_KEY_3=...
@@ -78,9 +87,11 @@ npm run dev
 ```
 
 ## ⚠️ Notes on Rate Limits
-Because the **Google Gemini Free Tier** is strictly limited to 15 requests per minute, rapid conversational testing can exhaust a single key quickly. 
+Because this app is designed to run on free or low-tier API keys, you may encounter rate limits during rapid conversational testing:
+- **Anthropic Claude 3.5 Sonnet**: Used for complex web-searching and chat. If you exhaust your Claude API limits (or if it throws an error), the system will **automatically and instantly fall back to Gemini 2.5 Flash** for chat generation, ensuring uninterrupted user experience.
+- **Google Gemini 2.5 Flash**: Used as the primary video orchestration engine (and chat fallback). The Free Tier is strictly limited to 15 requests per minute. 
 
-To solve this, the pipeline has a built-in **Automated Key Rotation System**. It will sequentially cycle through up to 4 API keys provided in your `.env.local`. If one key throws a `429 Too Many Requests` error, the system instantly catches it and seamlessly falls back to the next available key without interrupting the video generation. If all keys are exhausted, the app will gracefully tell the user to wait a moment.
+To solve this bottleneck, the pipeline has a built-in **Automated Key Rotation System**. It will sequentially cycle through up to 4 Gemini API keys provided in your `.env.local`. If one key throws a `429 Too Many Requests` error, the system instantly catches it and seamlessly reroutes to the next available key without interrupting the generation.
 
 ## 🚧 Known Limitations & Trade-offs (For Evaluators)
 Because this project was built without a budget for enterprise AI video generation (like Runway Gen-2, Luma Dream Machine, or Sora), the visual layer relies heavily on **Free Stock Footage APIs** (Pexels & Giphy). 
