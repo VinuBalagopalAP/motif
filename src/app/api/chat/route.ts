@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { after } from 'next/server';
-import { createJob } from '@/lib/jobs';
+import { createJob, updateJobStatus } from '@/lib/jobs';
 import { runPipelineWorker } from '@/lib/pipeline/worker';
 import { classifyMessage } from '@/lib/pipeline/classifyMessage';
 
@@ -8,7 +8,7 @@ export const maxDuration = 60; // Allow Vercel lambda to run up to 60s for backg
 
 export async function POST(req: Request) {
   try {
-    const { message, userId, history = [] } = await req.json();
+    const { message, userId, history = [], chatId } = await req.json();
     const authHeader = req.headers.get('Authorization');
     const token = authHeader?.replace('Bearer ', '');
 
@@ -18,27 +18,46 @@ export async function POST(req: Request) {
 
     // Classify intent synchronously
     const classification = await classifyMessage(message, history);
+    
+    let activeJobId = chatId;
 
     if (classification.type === 'chat') {
+      const reply = classification.reply || "Hello! I can help you generate UGC videos. Just provide a product URL.";
+      const newHistory = [...history, { role: 'user', content: message }, { role: 'assistant', type: 'chat', content: reply }];
+      
+      if (activeJobId) {
+        await updateJobStatus(activeJobId, { 
+          product_json: { chat_history: newHistory },
+          status: 'done'
+        }, token);
+      } else {
+        activeJobId = await createJob(message, userId, token, { chat_history: newHistory });
+      }
+
       return NextResponse.json({ 
         isChat: true, 
-        reply: classification.reply || "Hello! I can help you generate UGC videos. Just provide a product URL." 
+        reply: reply,
+        chatId: activeJobId
       });
     }
 
-    // Creates the job in Supabase securely (RLS enforced)
-    const jobId = await createJob(message, userId, token);
-    if (!jobId) {
-      return NextResponse.json({ error: 'Failed to create job in database' }, { status: 500 });
+    // It's a UGC request
+    const newHistory = [...history, { role: 'user', content: message }];
+    if (activeJobId) {
+      await updateJobStatus(activeJobId, { 
+        product_json: { chat_history: newHistory },
+        status: 'started' 
+      }, token);
+    } else {
+      activeJobId = await createJob(message, userId, token, { chat_history: newHistory });
     }
 
     // Explicitly tell Vercel to wait for the worker via `after`
     after(async () => {
-      // Pass the already classified UGC intent down if needed, but worker can just proceed.
-      await runPipelineWorker(jobId, message, token, history, classification);
+      await runPipelineWorker(activeJobId, message, token, newHistory, classification);
     });
 
-    return NextResponse.json({ jobId });
+    return NextResponse.json({ jobId: activeJobId, chatId: activeJobId });
   } catch (error) {
     return NextResponse.json({ error: 'Failed to create job' }, { status: 500 });
   }

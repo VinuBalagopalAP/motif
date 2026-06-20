@@ -6,7 +6,8 @@ export async function generateConcept(message: string, scrapedData: any) {
   const keys = [
     process.env.GEMINI_API_KEY,
     process.env.GEMINI_API_KEY_2,
-    process.env.GEMINI_API_KEY_3
+    process.env.GEMINI_API_KEY_3,
+    process.env.GEMINI_API_KEY_4
   ].filter(Boolean) as string[];
 
   if (keys.length === 0) throw new Error("No GEMINI_API_KEY is set.");

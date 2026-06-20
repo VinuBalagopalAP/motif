@@ -24,11 +24,12 @@ Integrated with a PostgreSQL database via **Supabase**.
 - Background workers safely execute database updates by temporarily assuming the user's secure authentication token, preventing silent permission drops.
 - Polling mechanism instantly streams live UI updates (e.g., "Scraping site", "Writing hooks").
 
-### 💬 Context-Aware Conversational Interface
-The app features an intelligent chat layer that evaluates user intent before deciding to create a video.
-- **Intent Classification**: Uses Gemini to determine if a user is just chatting or requesting a video. If they just say "hi", it replies naturally without generating a video.
-- **Context Retention**: Maintains full chat history across the session, allowing natural conversational flows.
-- **Sidebar Organization**: Pure chat interactions bypass the database entirely, ensuring your "Library" sidebar only populates with actual video generation tasks.
+### 💬 Threaded Chat Sessions
+The app features a fully threaded, ChatGPT-style chat interface that seamlessly blends pure text conversation with complex video generation tasks.
+- **Intent Classification**: Uses Gemini to dynamically determine if a message is casual chat or a video request on every single turn.
+- **Persistent Normal Chats**: All normal conversations are permanently saved to your Library as active threads.
+- **In-Chat Video Generation**: Requesting a video inside an ongoing chat drops the generated Remotion video player directly inline within the conversation feed, without breaking the session.
+- **Perfect Session Rehydration**: Clicking a thread from the sidebar instantly reconstructs your entire conversation history, re-rendering all text bubbles and inline video players perfectly.
 
 ### 📱 Responsive & Premium UI
 Built with vanilla CSS to ensure absolute structural control. Features a beautiful dark mode aesthetic, smooth micro-animations, glassmorphism elements, and full mobile-responsiveness (hiding the sidebar and adjusting controls natively). Includes a custom-designed Motif favicon.
@@ -60,6 +61,9 @@ npm install
 NEXT_PUBLIC_SUPABASE_URL=...
 NEXT_PUBLIC_SUPABASE_ANON_KEY=...
 GEMINI_API_KEY=...
+GEMINI_API_KEY_2=...
+GEMINI_API_KEY_3=...
+GEMINI_API_KEY_4=...
 
 # (Optional but recommended for dynamic assets)
 PEXELS_API_KEY=...
@@ -73,7 +77,9 @@ npm run dev
 ```
 
 ## ⚠️ Notes on Rate Limits
-If generations occasionally pause for ~15 seconds before resuming, it is due to the **Google Gemini Free Tier Rate Limits** (15 requests per minute). The SDK handles `429 Too Many Requests` errors by implementing an automatic exponential backoff.
+Because the **Google Gemini Free Tier** is strictly limited to 15 requests per minute, rapid conversational testing can exhaust a single key quickly. 
+
+To solve this, the pipeline has a built-in **Automated Key Rotation System**. It will sequentially cycle through up to 4 API keys provided in your `.env.local`. If one key throws a `429 Too Many Requests` error, the system instantly catches it and seamlessly falls back to the next available key without interrupting the video generation. If all keys are exhausted, the app will gracefully tell the user to wait a moment.
 
 ## 🚧 Known Limitations & Trade-offs (For Evaluators)
 Because this project was built without a budget for enterprise AI video generation (like Runway Gen-2, Luma Dream Machine, or Sora), the visual layer relies heavily on **Free Stock Footage APIs** (Pexels & Giphy). 

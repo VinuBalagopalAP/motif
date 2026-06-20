@@ -2,6 +2,16 @@
 
 All notable changes to the Motif UGC Video Generator will be documented in this file.
 
+## [v1.01] - 2026-06-20
+
+### Added
+- **Threaded Chat Sessions**: Overhauled the core architecture to support a true ChatGPT-style threaded interface without requiring database schema migrations. A single `video_job` now acts as an entire chat session, storing full conversational history in a nested JSON array.
+- **Persistent Normal Chats**: Normal, pure-text chats are now permanently saved to the database (previously they were strictly ephemeral and bypassed the database).
+- **In-Chat Video Generation**: Requesting a video inside an ongoing conversation no longer breaks the session or spawns a disconnected job. The backend pipeline generates the video and seamlessly drops the Remotion video player directly inline within your active chat thread.
+- **Perfect Session Rehydration**: Refreshing the page or clicking a thread from the Library instantly reads the nested `chat_history` JSON and reconstructs the entire back-and-forth conversation, re-rendering all text bubbles and video players in exact chronological order.
+- **Automated API Key Rotation**: Built a resilient fallback mechanism that seamlessly cycles through up to 4 Gemini API keys (`GEMINI_API_KEY` to `GEMINI_API_KEY_4`). If the free-tier rate limit (15 requests per minute) is exceeded, the system catches the `429` error and instantly reroutes the request to the next available key to prevent pipeline crashes.
+
+
 ## [v1.00] - 2026-06-20
 
 ### Added

@@ -28,6 +28,7 @@ export default function ChatApp() {
   const [editingMsgId, setEditingMsgId] = useState<string | null>(null);
   const [editInput, setEditInput] = useState("");
   const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [activeChatId, setActiveChatId] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -166,6 +167,7 @@ export default function ChatApp() {
         body: JSON.stringify({ 
           message: prompt, 
           userId: user.id,
+          chatId: activeChatId,
           history: messages.map(m => ({ 
             role: m.role, 
             content: m.role === 'assistant' ? (m.job?.product_json?.chat_reply || "Generated a video.") : m.content 
@@ -175,13 +177,16 @@ export default function ChatApp() {
       const data = await res.json();
       
       if (data.isChat) {
+        if (!activeChatId && data.chatId) setActiveChatId(data.chatId);
         setMessages(prev => prev.map(m => 
           m.id === assistantMessage.id ? { 
             ...m, 
             job: { status: 'done', product_json: { chat_reply: data.reply } } as any 
           } : m
         ));
+        fetchHistory();
       } else {
+        if (!activeChatId && data.chatId) setActiveChatId(data.chatId);
         setMessages(prev => prev.map(m => 
           m.id === assistantMessage.id ? { ...m, jobId: data.jobId } : m
         ));
@@ -255,10 +260,23 @@ export default function ChatApp() {
   };
 
   const loadJob = (job: Job) => {
-    setMessages([
-      { id: `user-${job.id}`, role: 'user', content: job.message },
-      { id: `asst-${job.id}`, role: 'assistant', content: '', jobId: job.id, job }
-    ]);
+    setActiveChatId(job.id);
+    if (job.product_json?.chat_history) {
+      const historyMessages = job.product_json.chat_history.map((msg: any, i: number) => ({
+        id: `hist-${job.id}-${i}`,
+        role: msg.role,
+        content: msg.content || '',
+        jobId: msg.type === 'video' ? job.id : undefined,
+        job: msg.type === 'video' ? { ...job, status: 'done', render_spec_json: msg.render_spec } : (msg.type === 'chat' ? { status: 'done', product_json: { chat_reply: msg.content } } : undefined)
+      }));
+      setMessages(historyMessages);
+    } else {
+      setMessages([
+        { id: `user-${job.id}`, role: 'user', content: job.message },
+        { id: `asst-${job.id}`, role: 'assistant', content: '', jobId: job.id, job }
+      ]);
+    }
+    setMobileMenuOpen(false);
   };
 
   const handleLogout = async () => {
@@ -289,7 +307,7 @@ export default function ChatApp() {
       `}>
         <div className="p-6 flex flex-col gap-4">
           <button 
-            onClick={() => { setMessages([]); setMobileMenuOpen(false); }}
+            onClick={() => { setActiveChatId(null); setMessages([]); setMobileMenuOpen(false); }}
             className="flex items-center justify-center gap-2 bg-[#08c225] hover:bg-[#00b33c] text-white rounded-[16px] px-4 py-3 font-semibold text-sm shadow-[0_4px_12px_rgba(8,194,37,0.2)] hover:shadow-[0_6px_16px_rgba(8,194,37,0.3)] transition-all duration-200"
           >
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
@@ -357,10 +375,10 @@ export default function ChatApp() {
                     <path strokeLinecap="round" strokeLinejoin="round" d="m15.75 10.5 4.72-4.72a.75.75 0 0 1 1.28.53v11.38a.75.75 0 0 1-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z" />
                   </svg>
                 </div>
-                <h2 className="text-3xl font-bold tracking-tight text-[#282828] mb-3">Create something new</h2>
+                <h2 className="text-3xl font-bold tracking-tight text-[#282828] mb-3">How can I help you today?</h2>
                 <div className="max-w-md mx-auto">
                   <p className="text-sm text-[#757575] font-medium leading-relaxed">
-                    Provide a product link or describe your vision, and we'll generate a high-quality video for you automatically.
+                    Chat with me, or provide a product link and I'll generate a high-quality marketing video for you automatically.
                   </p>
                 </div>
               </div>

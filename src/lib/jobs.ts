@@ -57,11 +57,11 @@ export async function getJob(id: string, token?: string): Promise<Job | null> {
   return data as Job;
 }
 
-export async function createJob(message: string, userId: string, token: string): Promise<string | null> {
+export async function createJob(message: string, userId: string, token: string, productJson?: any): Promise<string | null> {
   const client = getScopedClient(token);
   const { data, error } = await client
     .from('video_jobs')
-    .insert([{ message, status: 'started', user_id: userId }])
+    .insert([{ message, status: 'started', user_id: userId, product_json: productJson }])
     .select('id')
     .single();
 

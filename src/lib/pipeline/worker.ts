@@ -78,7 +78,9 @@ export async function runPipelineWorker(jobId: string, message: string, token?: 
     const concept = await generateConcept(message, scrapedData);
     
     // Save the extracted product name from the concept
-    await updateJobStatus(jobId, { product_json: { name: concept.productName, url: foundUrl } }, token);
+    await updateJobStatus(jobId, { 
+      product_json: { chat_history: history, name: concept.productName, url: foundUrl } 
+    }, token);
 
     logPipelineStep(jobId, 'ASSETS', `Concept generated for ${concept.productName}! Searching for Pexels and Giphy assets...`);
     const renderSpec = await pickAssets(concept);
@@ -90,9 +92,16 @@ export async function runPipelineWorker(jobId: string, message: string, token?: 
     console.dir(renderSpec, { depth: null, colors: true });
     console.log(`\x1b[36m--------------------------------------------------\x1b[0m\n`);
 
+    const finalHistory = [...history, { 
+      role: 'assistant', 
+      type: 'video', 
+      render_spec: renderSpec 
+    }];
+
     await updateJobStatus(jobId, { 
       status: 'done', 
       render_spec_json: renderSpec,
+      product_json: { chat_history: finalHistory, name: concept.productName, url: foundUrl },
       output_url: `/video/${jobId}` 
     }, token);
 
