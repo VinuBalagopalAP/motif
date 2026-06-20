@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import Anthropic from '@anthropic-ai/sdk';
 import trendPack from "../trend-pack.json";
 import { logApiHit, incrementGeminiCount } from './logger';
 
@@ -9,8 +10,6 @@ export async function generateConcept(message: string, scrapedData: any) {
     process.env.GEMINI_API_KEY_3,
     process.env.GEMINI_API_KEY_4
   ].filter(Boolean) as string[];
-
-  if (keys.length === 0) throw new Error("No GEMINI_API_KEY is set.");
 
   const hooks = trendPack.hooks.join(", ");
 
@@ -39,6 +38,27 @@ Respond strictly with a JSON object in this format (no markdown code blocks):
 
   let lastError: any;
 
+  // Try Claude first if API key is available
+  if (process.env.CLAUDE_API) {
+    try {
+      const anthropic = new Anthropic({ apiKey: process.env.CLAUDE_API });
+      logApiHit('Claude API (generateConcepts)', 1);
+      const msg = await anthropic.messages.create({
+        model: "claude-sonnet-4-6",
+        max_tokens: 1024,
+        messages: [{ role: "user", content: prompt }]
+      });
+      const text = (msg.content[0] as any).text.replace(/\`\`\`json/g, "").replace(/\`\`\`/g, "").trim();
+      return JSON.parse(text);
+    } catch (err: any) {
+      lastError = err;
+      console.warn("Claude API failed, falling back to Gemini. Error:", err.message);
+    }
+  }
+
+  // Fallback to Gemini Rotation System
+  if (keys.length === 0 && !process.env.CLAUDE_API) throw new Error("No API keys are set.");
+
   for (const apiKey of keys) {
     try {
       const genAI = new GoogleGenerativeAI(apiKey);
@@ -55,5 +75,5 @@ Respond strictly with a JSON object in this format (no markdown code blocks):
     }
   }
 
-  throw lastError;
+  throw lastError || new Error("All API attempts failed.");
 }

@@ -148,7 +148,7 @@ export default function ChatApp() {
   }, [messages, session]);
 
   const runGeneration = async (prompt: string) => {
-    if (!prompt.trim() || !user || !session) return;
+    if (!prompt.trim() || !user || !session || loading) return;
 
     const userMessage: Message = { id: Date.now().toString(), role: "user", content: prompt };
     const assistantMessage: Message = { id: (Date.now() + 1).toString(), role: "assistant", content: "" };
