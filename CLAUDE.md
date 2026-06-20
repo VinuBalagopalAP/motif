@@ -31,7 +31,7 @@ The server never runs FFmpeg (deliberate — it crashes inside Vercel's serverle
 ### Request flow
 1. Client (`src/app/page.tsx`) POSTs to `/api/chat` with `message`, `userId`, `history`, optional `chatId`, and a Supabase `Authorization: Bearer <token>` header.
 2. `/api/chat/route.ts` runs `classifyMessage` **synchronously** to decide `chat` vs `ugc`.
-   - **chat**: resolved immediately, appended to history, persisted, returned in the same response (no background work).
+   - **chat**: runs the web-capable `runChatAgent` (`chatAgent.ts`, see below), resolved immediately, appended to history (with `sources`), persisted, returned in the same response (no background work).
    - **ugc**: kicks off `runPipelineWorker` via Next's `after()` and returns a `jobId` for polling.
 3. The client polls `GET /api/jobs/[id]` on an interval until the job `status` becomes `done` or `error`, then re-reads history.
 
@@ -39,13 +39,14 @@ The server never runs FFmpeg (deliberate — it crashes inside Vercel's serverle
 `runPipelineWorker` is a sequential state machine that writes its `status` to the DB at each step so the UI can show live progress: `classifyMessage` → URL regex extract → `scrapeSite` (cheerio) → `generateConcept` (Gemini, single combined prompt) → `pickAssets`. Note: the in-memory `jobQueue`/`enqueueJob` at the top of this file is legacy and **not used in production** — routes call `runPipelineWorker` directly inside `after()` because in-memory queues don't survive serverless invocations. `export const maxDuration = 60` on every route keeps the lambda alive until the worker finishes.
 
 ### LLM provider chain (Claude primary → Gemini fallback → key rotation)
-`classifyMessage.ts` and `generateConcepts.ts` are the only two LLM call sites, and both follow the same provider chain:
-1. **Claude first** — if `process.env.CLAUDE_API` is set, try Anthropic (`@anthropic-ai/sdk`, model `claude-3-5-sonnet-20240620`) once. On any error, log a warning and fall through to Gemini.
+`classifyMessage.ts` and `generateConcepts.ts` follow the same provider chain (model `claude-sonnet-4-6`):
+1. **Claude first** — if `process.env.CLAUDE_API` is set, try Anthropic (`@anthropic-ai/sdk`) once. On any error, log a warning and fall through to Gemini.
 2. **Gemini fallback with key rotation** — build a key list from `GEMINI_API_KEY`..`GEMINI_API_KEY_4` and loop: on any failure (esp. `429`) catch and retry with the next key. Gemini free tier is 15 req/min, so this matters during rapid testing. Model is `gemini-2.5-flash`.
 
-All providers are prompted for strict JSON; the response text strips ```` ```json ```` fences before `JSON.parse`. When editing one prompt, edit the **same prompt string** that feeds both providers — the prompt is built once at the top of each function and passed to whichever provider runs.
+Both are prompted for strict JSON; the response text strips ```` ```json ```` fences before `JSON.parse`. When editing one prompt, edit the **same prompt string** that feeds both providers — the prompt is built once at the top of each function and passed to whichever provider runs.
 
-> Note: `claude-3-5-sonnet-20240620` is a **retired** model ID (retired 2025-10-28) and will 404 against the live API — the chain silently falls through to Gemini. Update to `claude-sonnet-4-6` (or another current model) in both files if Claude is meant to actually serve requests.
+### Web-capable chat agent (`src/lib/pipeline/chatAgent.ts`)
+`runChatAgent(message, history)` powers the conversational **chat** path (not the UGC pipeline). It calls Claude (`claude-sonnet-4-6`) with the server-side `web_search_20260209` + `web_fetch_20260209` tools (each capped at `max_uses: 5`), so Claude decides when to search the web or fetch a pasted link and returns a cited answer — no scraping infra. It handles the `pause_turn` server-tool continuation loop (capped at 5), concatenates `text` blocks into `reply`, and dedupes citation URLs into `sources: {url, title}[]`. Returns `null` when `CLAUDE_API` is unset or Claude errors, so `route.ts` falls back to the Gemini classifier reply (no web). `sources` are persisted in the `chat_history` entry (`{role:'assistant', type:'chat', content, sources}`) and rendered as a link list under the chat bubble in `page.tsx`. Streaming and feeding research into the video pipeline are deliberately deferred.
 
 ### Asset fetching (`src/lib/pipeline/pickAssets.ts`)
 Fetches Pexels (vertical video), Giphy (sticker), and iTunes (30s music preview) concurrently via `Promise.all`, each randomly selecting from up to 15 results for variety. Every fetch degrades gracefully to `src/lib/trend-pack.json` on missing key / error / rate limit, guaranteeing a video always renders.

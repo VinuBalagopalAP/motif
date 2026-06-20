@@ -3,6 +3,7 @@ import { after } from 'next/server';
 import { createJob, updateJobStatus } from '@/lib/jobs';
 import { runPipelineWorker } from '@/lib/pipeline/worker';
 import { classifyMessage } from '@/lib/pipeline/classifyMessage';
+import { runChatAgent } from '@/lib/pipeline/chatAgent';
 
 export const maxDuration = 60; // Allow Vercel lambda to run up to 60s for background tasks
 
@@ -22,11 +23,15 @@ export async function POST(req: Request) {
     let activeJobId = chatId;
 
     if (classification.type === 'chat') {
-      const reply = classification.reply || "Hello! I can help you generate UGC videos. Just provide a product URL.";
-      const newHistory = [...history, { role: 'user', content: message }, { role: 'assistant', type: 'chat', content: reply }];
-      
+      // Web-capable agent (Claude server tools); falls back to the classifier reply when
+      // CLAUDE_API is unset or Claude errors.
+      const agent = await runChatAgent(message, history);
+      const reply = agent?.reply || classification.reply || "Hello! I can help you generate UGC videos. Just provide a product URL.";
+      const sources = agent?.sources || [];
+      const newHistory = [...history, { role: 'user', content: message }, { role: 'assistant', type: 'chat', content: reply, sources }];
+
       if (activeJobId) {
-        await updateJobStatus(activeJobId, { 
+        await updateJobStatus(activeJobId, {
           product_json: { chat_history: newHistory },
           status: 'done'
         }, token);
@@ -34,9 +39,10 @@ export async function POST(req: Request) {
         activeJobId = await createJob(message, userId, token, { chat_history: newHistory });
       }
 
-      return NextResponse.json({ 
-        isChat: true, 
+      return NextResponse.json({
+        isChat: true,
         reply: reply,
+        sources: sources,
         chatId: activeJobId
       });
     }
