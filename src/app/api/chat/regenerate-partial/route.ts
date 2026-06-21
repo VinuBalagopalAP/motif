@@ -7,7 +7,7 @@ export const maxDuration = 60; // Allow Vercel lambda to run up to 60s for backg
 
 export async function POST(req: Request) {
   try {
-    const { jobId, partialTarget } = await req.json(); // partialTarget: 'caption' | 'gif' | 'background'
+    const { jobId, partialTarget, bgType, bgPrompt } = await req.json(); // partialTarget: 'caption' | 'gif' | 'background'
     const authHeader = req.headers.get('Authorization');
     const token = authHeader?.replace('Bearer ', '');
 
@@ -53,7 +53,7 @@ export async function POST(req: Request) {
 
     // Re-run the video pipeline worker with partialTarget and existingRenderSpec
     after(async () => {
-      await runPipelineWorker(jobId, lastUserMsg.content, token, newHistory, null, assistantMessage, partialTarget, existingRenderSpec);
+      await runPipelineWorker(jobId, lastUserMsg.content, token, newHistory, null, assistantMessage, partialTarget, existingRenderSpec, bgType, bgPrompt);
     });
 
     return NextResponse.json({ success: true, type: 'video' });

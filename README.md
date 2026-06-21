@@ -12,8 +12,10 @@ Powered by Gemini 2.5 Flash and Claude 3.5 Sonnet, the AI acts as a creative dir
 ### ⚡ Parallelized Media Fetching & Intelligent Caching
 The pipeline simultaneously fetches assets from multiple APIs using `Promise.allSettled` to significantly boost speed:
 - **Coverr API**: Integrates with Coverr's API to fetch premium, cinematic, high-resolution stock video footage.
-- **Pexels API**: Fetches high-quality, vertical background videos. 
-*Note: The results from Coverr and Pexels are pooled together and randomly selected to ensure immense visual variety across generations.*
+- **Unsplash API**: Securely queries Unsplash for high-quality, portrait (`9:16`) stock photography matching the AI's complex aesthetic composition rules.
+- **Pollinations AI**: Safely falls back to Pollinations AI to generate the exact image if the query is too niche for stock libraries, ensuring you never get a blank background.
+- **Pexels API**: Fetches high-quality, vertical background videos as an alternative stock source. 
+*Note: The results from Unsplash, Coverr, and Pexels are pooled together and intelligently selected to ensure immense visual variety across generations.*
 - **Giphy, Klipy, & API League**: Runs 3 separate meme API queries concurrently to pool the top 15 most relevant transparent reaction meme stickers.
 - **Global Asset Caching**: Successful API fetches for trending GIF/Meme queries are immediately saved to a global Supabase `cached_assets` table. Subsequent generations instantly hit the cache, preventing API rate-limiting and drastically improving generation speed.
 - **iTunes Search API**: A brilliant hack! Uses the completely free Apple iTunes Search API to fetch high-quality 30-second `.m4a` music previews perfectly tailored to the AI's requested "audio mood" (e.g., "lofi chill beat", "upbeat pop").
@@ -65,7 +67,7 @@ Built with vanilla CSS to ensure absolute structural control. Features a beautif
 1. **Intelligent Extraction**: The `chatAgent` pipeline natively evaluates the prompt to extract the target URL and product name while classifying if it's a casual chat or a generation request.
 2. **Scraping**: The backend fetches live `<title>`, `<meta>`, and `<h1>`/`<p>` tags from the target site to ground the AI in reality. (Skipped during surgical partial regenerations).
 3. **Concept Generation**: The LLM receives the scraped data and constructs a dynamic JSON payload containing the viral hook text, visual search queries, and audio vibes.
-4. **Asset Selection & Caching**: The server checks the global Supabase `cached_assets` first. On a cache miss, it concurrently hits Pexels, Coverr, Giphy, Klipy, API League, and iTunes via `Promise.allSettled` to assemble the visual and auditory layers.
+4. **Asset Selection & Caching**: The server checks the global Supabase `cached_assets` first. On a cache miss, it concurrently hits Unsplash, Pollinations, Pexels, Coverr, Giphy, Klipy, API League, and iTunes via `Promise.allSettled` to assemble the visual and auditory layers.
 5. **Rendering**: The client UI natively mounts the resulting JSON payload into the Remotion Player, fetching any uploaded custom fonts via the `FontFace` API.
 
 *(Emergency Fallback: If any 3rd-party API crashes or hits rate limits, the app instantly and gracefully falls back to a curated local `trend-pack.json` to guarantee 100% video output reliability).*
@@ -90,13 +92,14 @@ GEMINI_API_KEY_3=...
 GEMINI_API_KEY_4=...
 
 # (Optional but recommended for dynamic assets)
-PEXELS_API_KEY=...
-COVERR_API_KEY=...
-GIPHY_API_KEY=...
-KLIPY_API_KEY=...
-API_LEAGUE_KEY=...
+UNSPLASH_ACCESS_KEY=... # High-quality portrait photos for AI Image background mode
+PEXELS_API_KEY=...      # Stock video clips for Video background mode
+COVERR_API_KEY=...      # Premium cinematic stock video clips
+GIPHY_API_KEY=...       # Reaction meme GIFs
+KLIPY_API_KEY=...       # Meme sticker fallback
+API_LEAGUE_KEY=...      # Additional meme source
 ```
-*(Note: No iTunes API key is needed as the search endpoint is completely free!)*
+*(Note: No iTunes API key needed — that endpoint is completely free! If Unsplash returns no results, the pipeline automatically falls back to Pollinations AI to generate the background image at no cost.)*
 
 3. Start the development server:
 ```bash
@@ -110,8 +113,8 @@ Because this app is designed to run on free or low-tier API keys, you may encoun
 - **Media Asset APIs (Giphy, Pexels, Coverr)**: Free tiers on media APIs often have strict hourly rate limits. To aggressively combat this, Motif employs a **Global Asset Caching** layer via Supabase. Successful API fetches for trending meme queries are saved to the database. Subsequent requests for the same query bypass the API entirely and instantly fetch from the cache. Furthermore, the meme pipeline simultaneously hits Giphy, Klipy, and API League, gracefully falling back if any single API hits a rate limit.
 
 ## 🚧 Known Limitations & Trade-offs (For Evaluators)
-Because this project was built without a budget for enterprise AI video generation (like Runway Gen-2, Luma Dream Machine, or Sora), the visual layer relies entirely on **Free Stock Footage APIs** (Pexels, Coverr, Giphy, Klipy). 
-- **Generic Visuals vs. Prompt Specificity**: Even if the LLM generates a hyper-specific, perfect background query (e.g., "Gmail inbox interface layout"), the stock APIs will likely return generic footage (e.g., "a person typing on a laptop with Photoshop open"). The pipeline is extremely intelligent at *writing* the queries, and the addition of **Coverr** helps inject high-end cinematic variety, but visual accuracy is ultimately bottlenecked by real-world stock library inventory.
+Because this project was built without a budget for enterprise AI video generation (like Runway Gen-2, Luma Dream Machine, or Sora), the visual layer relies on **Free Stock Photo/Video APIs** (Unsplash, Pexels, Coverr, Giphy, Klipy). 
+- **Generic Visuals vs. Prompt Specificity**: Even if the LLM generates a hyper-specific, perfect background query (e.g., "Gmail inbox interface layout"), the stock APIs will likely return generic results. However, the pipeline now has a two-stage fallback: **Unsplash** is queried first for high-quality portrait photos, and if nothing relevant is found, **Pollinations AI** generates the exact image from the AI's full composition prompt. This effectively eliminates blank backgrounds even for the most niche products.
 - **Why Not FFmpeg?**: A traditional video-generation pipeline would use a cloud server running FFmpeg to render out a flat `.mp4` file. However, running FFmpeg inside a Next.js serverless Vercel function (which has a 10s execution limit and 50MB memory limit) is a severe anti-pattern that crashes under load. I specifically chose the **Remotion** approach to demonstrate a scalable, zero-cost, enterprise-grade architecture that bypasses heavy cloud-rendering costs entirely.
 
 ## 📝 Changelog

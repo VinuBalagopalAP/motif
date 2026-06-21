@@ -2,6 +2,51 @@
 
 All notable changes to the Motif UGC Video Generator will be documented in this file.
 
+## [1.9.1] - 2026-06-22
+
+### Fixed
+- **Stacked/Double Meme Issue**: Fixed a bug where changing a meme simply added the new GIF on top of the old one by giving the Remotion `<Gif>` component a React `key={spec.gifOverlay.url}` to enforce unmounting.
+- **Missing Preview / Refresh Required**: The UI polling loop successfully injected the completed video spec but forgot to change the variant `type` from `'chat'` to `'video'`. This kept the video player hidden until a refresh loaded the correct type from the database.
+- **`.webp` EncodingError**: Updated the asset pipeline to strictly filter out `.webp` fallbacks from Klipy so the Remotion `<Gif>` component never crashes.
+- **Image Switch EncodingError**: Radically improved background media switching in `UgcVideo.tsx` by unconditionally mounting *both* the image and video backgrounds (when available) and swapping their CSS `opacity`. This instantly makes background switching seamless and completely eliminates the browser's `EncodingError` caused by aborted image decodes when unmounting.
+- **Memory Leak in UI**: Fixed a stray `window.addEventListener('unhandledrejection')` that was leaking outside of a `useEffect` on every render.
+
+## [1.9.0] - 2026-06-22
+
+### Added
+- **Dual background pre-generation (Issue 4)**: The pipeline now fetches **both** image (Unsplash → Pollinations) and video (Pexels + Coverr) backgrounds in parallel on every generation. Both are stored as `background_image` and `background_video` in the render spec. Switching the "AI Image" ↔ "Stock Video" tab is now **instant** — no API call required. A `✓ Both ready` badge shows when both are available. The "Stock Video" button shows `(fetch)` hint if video wasn't pre-fetched.
+- **Scroll Fade UX (Issue 2)**: Added a CSS `mask-image` gradient on the chat scroll area so messages fade out gracefully at the bottom instead of abruptly being cut off by the floating input bar. `pb-0` prevents double-padding.
+
+### Changed
+- **`UgcVideo.tsx`**: Background rendering now reads `spec.activeBgType` (set by instant tab switch) and resolves the correct `background_image` or `background_video` URL from the pre-fetched spec fields, with full backward compatibility for older specs.
+- **Media Type tabs**: Tab buttons now call `updateSpec()` directly to switch `activeBgType` and `background` locally. Only the "Regenerate Media" button triggers an API call.
+- **`worker.ts`**: Background partial regenerations now also update `background_image`, `background_video`, and `activeBgType` in the spec so the dual-background system stays fresh.
+- **Removed `pendingBgTypes` state**: No longer needed since switching is handled by local spec mutation.
+
+### Fixed
+- **Critical: Video card not appearing without refresh (Issue 3)**: Root-caused the polling logic in `page.tsx`. When a video job finished, `setMessages` only updated `variants` if they already existed. For fresh generations where `variants` was `undefined`, the spec was silently dropped and the Remotion Player never rendered. Fix: if `status === 'done'` and `variants` is empty, bootstrap a new `variants` array from `job.render_spec_json` directly in the poller.
+- **Meme always the same (Issue 5)**: The Supabase `cached_assets` table returned the same single Giphy URL every time (cache had only 1 option stored). Fix: bypass the gif cache entirely for pipeline auto-selection — always do a fresh parallel Giphy/Klipy/API League fetch. Cache is still used for the user-facing meme search panel in the UI.
+- **4 versions on refresh (Issue 6)**: Each background tab switch triggered a `handlePartialRegenerate` call which appended a new entry to `chat_history`, making 4 versions appear on reload. Fix: `partialTarget === 'background'` now updates the existing last video message in `chat_history` in-place instead of appending a new variant.
+
+## [1.8.0] - 2026-06-22
+
+### Added
+- **Unsplash API Integration**: The background image pipeline now queries Unsplash (`UNSPLASH_ACCESS_KEY`) for high-quality, `portrait`-oriented stock photography matched to the AI's detailed aesthetic composition prompt. Picks randomly from the top 5 results for variety.
+- **Pollinations AI Fallback**: When Unsplash returns no usable results (e.g., overly niche product queries), the pipeline automatically generates the exact background image via Pollinations AI at no cost, ensuring 100% background coverage.
+- **Enhanced AI Composition Prompts**: Upgraded the `generateConcepts` system prompt with strict `9:16` cinematic composition rules — Visual Hierarchy (Primary 30-60% / Secondary 20-30% / Tertiary 5-15% attention), rule-of-thirds focus, negative space guidance, and thumbnail legibility constraints. Background prompts are now significantly more detailed and accurate.
+- **Inline Caption Refresh Button**: Replaced the bulky "Roll New Caption" bottom button with a compact inline refresh icon (↻) directly next to the "Caption Content" panel header for a cleaner editor UI.
+
+### Changed
+- **Background Tab Toggle (Non-Destructive)**: Switching between "AI Image" and "Stock Video" in the Background tab no longer mutates the active `render_spec` immediately. The selection is held in a local `pendingBgTypes` state and only applied when the user explicitly clicks "Regenerate Media", preventing the Remotion player from going black mid-edit.
+- **Removed Auto-Play**: The Remotion `<Player>` no longer auto-plays on load. Users must explicitly click play, preventing jarring auto-playback on page load or when switching chat threads.
+- **Unconstrained Meme/GIF Layout**: Removed the hardcoded `width: 70%` / `height: 40%` container box around the GIF overlay in `UgcVideo.tsx`. Memes now render at their natural aspect ratio (capped at 900px max), looking far more natural and less squished.
+- **State Polling Fix**: The polling loop in `page.tsx` now syncs the active `variants` array when a job finishes (`status: 'done'`), so the Remotion player reflects the newly generated `render_spec_json` without requiring a manual page refresh.
+- **Removed Roll Buttons**: Removed the "Roll New Caption" and "Roll New Meme" secondary action buttons from the main video controls bar, replacing them with the inline refresh icon described above.
+- **Updated `trend-pack.json`**: Added `imagePrompt` and renamed `query` → `backgroundQuery` in the fallback backgrounds list to match the LLM output schema and support the new Unsplash pipeline.
+
+### Fixed
+- **JSX Syntax Error**: Removed an extra stray `</div>` closing tag introduced when removing the Roll buttons, which was causing a cascade of TypeScript/JSX compilation errors.
+
 ## [1.7.0] - 2026-06-22
 
 ### Added

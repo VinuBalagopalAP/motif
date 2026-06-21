@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-06-19",
+  "updatedAt": "2026-06-22",
   "hooks": [
     "me pretending i have this under control",
     "when the app does the thing i was avoiding",
@@ -12,19 +12,23 @@
   "gifReactions": ["side-eye", "smirk", "mind-blown", "confused-guy", "shocked"],
   "backgrounds": [
     {
-      "query": "modern gym interior vertical",
+      "backgroundQuery": "modern gym interior vertical",
+      "imagePrompt": "Cinematic vertical shot, dark moody gym, neon lighting, highly detailed, 8k resolution, photorealistic background. Strict 9:16 portrait aspect ratio. Primary Subject (30-60% attention, near rule-of-thirds, sharp focus), Secondary Elements (20-30%, supporting narrative), Tertiary Elements (5-15%, blurred/low saturation for depth). Composition: Cinematic depth with foreground/mid/background layers, leaving 20-40% negative space to prevent overcrowding.",
       "url": "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=1080&auto=format&fit=crop"
     },
     {
-      "query": "healthy meal close up vertical",
+      "backgroundQuery": "healthy meal close up vertical",
+      "imagePrompt": "Cinematic vertical shot, dark moody kitchen table, neon lighting, highly detailed, 8k resolution, photorealistic background. Strict 9:16 portrait aspect ratio. Primary Subject (30-60% attention, near rule-of-thirds, sharp focus), Secondary Elements (20-30%, supporting narrative), Tertiary Elements (5-15%, blurred/low saturation for depth). Composition: Cinematic depth with foreground/mid/background layers, leaving 20-40% negative space to prevent overcrowding.",
       "url": "https://images.unsplash.com/photo-1490645935967-10de6ba17061?q=80&w=1080&auto=format&fit=crop"
     },
     {
-      "query": "night kitchen cinematic",
+      "backgroundQuery": "night kitchen cinematic",
+      "imagePrompt": "Cinematic vertical shot, dark moody kitchen table, neon lighting, highly detailed, 8k resolution, photorealistic background. Strict 9:16 portrait aspect ratio. Primary Subject (30-60% attention, near rule-of-thirds, sharp focus), Secondary Elements (20-30%, supporting narrative), Tertiary Elements (5-15%, blurred/low saturation for depth). Composition: Cinematic depth with foreground/mid/background layers, leaving 20-40% negative space to prevent overcrowding.",
       "url": "https://images.unsplash.com/photo-1556910103-1c02745a872f?q=80&w=1080&auto=format&fit=crop"
     },
     {
-      "query": "office desk laptop vertical",
+      "backgroundQuery": "office desk laptop vertical",
+      "imagePrompt": "Cinematic vertical shot, dark moody office desk, neon lighting, highly detailed, 8k resolution, photorealistic background. Strict 9:16 portrait aspect ratio. Primary Subject (30-60% attention, near rule-of-thirds, sharp focus), Secondary Elements (20-30%, supporting narrative), Tertiary Elements (5-15%, blurred/low saturation for depth). Composition: Cinematic depth with foreground/mid/background layers, leaving 20-40% negative space to prevent overcrowding.",
       "url": "https://images.unsplash.com/photo-1498050108023-c5249f4df085?q=80&w=1080&auto=format&fit=crop"
     }
   ],

@@ -10,7 +10,20 @@ export interface RenderSpec {
   background: {
     type: "image" | "video";
     url: string;
+    prompt?: string;
   };
+  // Pre-fetched both types for instant switching
+  background_image?: {
+    type: "image";
+    url: string;
+    prompt?: string;
+  };
+  background_video?: {
+    type: "video";
+    url: string;
+    prompt?: string;
+  } | null;
+  activeBgType?: 'image' | 'video';
   overlayText: {
     top: string;
     bottom?: string;

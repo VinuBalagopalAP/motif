@@ -52,6 +52,7 @@ Respond strictly with a JSON object in this format (no markdown code blocks):
   "durationSec": 6,
   "aspectRatio": "9:16",
   "backgroundQuery": "A highly aesthetic, generic B-roll query for Pexels. DO NOT search for literal product actions (e.g., 'woman applying serum'). Pexels free tier fails at this. INSTEAD, search for pure vibes (e.g., 'aesthetic morning coffee', 'sunlight window', 'neon gym', 'calm ocean waves')",
+  "imagePrompt": "A highly detailed, Midjourney-style prompt for an AI image generator to create the perfect background. MUST follow strict rules: 1. Strict 9:16 portrait aspect ratio. 2. Visual Hierarchy: Primary Subject (30-60% attention, near rule-of-thirds, sharp focus), Secondary Elements (20-30%, supporting narrative), Tertiary Elements (5-15%, blurred/low saturation for depth). 3. Composition: Cinematic depth with foreground/mid/background layers, leaving 20-40% negative space to prevent overcrowding. 4. Thumbnail Legibility: Must be instantly recognizable within 2 seconds. Include exact photography terms (e.g., 'Cinematic vertical shot, dark moody office desk, neon lighting, highly detailed, 8k resolution, photorealistic background').",
   "fallbackBackgroundQuery": "A 1-2 word extremely broad aesthetic fallback query (e.g., 'aesthetic', 'sunset', 'water', 'city')",
   "overlayText": {
     "top": "The exact trending hook you found on the internet (e.g. 'pov: you finally found...')",

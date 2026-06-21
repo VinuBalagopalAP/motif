@@ -70,21 +70,32 @@ export const UgcVideo: React.FC<{ spec: RenderSpec }> = ({ spec }) => {
     <AbsoluteFill style={{ backgroundColor: "black" }}>
       {spec.backgroundMode === 'color' ? (
         <AbsoluteFill style={{ backgroundColor: spec.backgroundColor || "black" }} />
-      ) : (
-        <AbsoluteFill style={{ transform: `scale(${bgScale})` }}>
-          {spec.background.type === "video" ? (
-            <OffthreadVideo
-              src={spec.background.url}
-              style={{ width: "100%", height: "100%", objectFit: "cover" }}
-            />
-          ) : (
-            <Img
-              src={spec.background.url}
-              style={{ width: "100%", height: "100%", objectFit: "cover" }}
-            />
-          )}
-        </AbsoluteFill>
-      )}
+      ) : (() => {
+        // Support instant switching between pre-fetched image and video backgrounds
+        const activeBgType = spec.activeBgType || spec.background?.type || 'image';
+        const resolvedBg = activeBgType === 'video'
+          ? (spec.background_video || spec.background)
+          : (spec.background_image || spec.background);
+        const bgUrl = resolvedBg?.url || spec.background?.url || '';
+        const bgIsVideo = activeBgType === 'video' || resolvedBg?.type === 'video';
+
+        return (
+          <AbsoluteFill style={{ transform: `scale(${bgScale})` }}>
+            {resolvedBg?.type === 'video' || spec.background_video?.url ? (
+              <OffthreadVideo
+                src={spec.background_video?.url || bgUrl}
+                style={{ width: "100%", height: "100%", objectFit: "cover", position: "absolute", opacity: bgIsVideo ? 1 : 0 }}
+              />
+            ) : null}
+            {resolvedBg?.type === 'image' || spec.background_image?.url || (!spec.background_video?.url && !resolvedBg) ? (
+              <Img
+                src={spec.background_image?.url || bgUrl}
+                style={{ width: "100%", height: "100%", objectFit: "cover", position: "absolute", opacity: !bgIsVideo ? 1 : 0 }}
+              />
+            ) : null}
+          </AbsoluteFill>
+        );
+      })()}
 
       <AbsoluteFill
         style={{
@@ -123,20 +134,14 @@ export const UgcVideo: React.FC<{ spec: RenderSpec }> = ({ spec }) => {
         position: "absolute", 
         top: `calc(50% + ${spec.gifOverlay.style?.y || 0}px)`, 
         left: `calc(50% + ${spec.gifOverlay.style?.x || 0}px)`, 
-        transform: `translate(-50%, -50%) scale(${popInGif * (spec.gifOverlay.style?.scale || 1)})`, 
-        width: "70%", 
-        height: "40%", 
-        display: "flex", 
-        justifyContent: "center", 
-        alignItems: "center" 
+        transform: `translate(-50%, -50%) scale(${popInGif * (spec.gifOverlay.style?.scale || 1.3)})`,
       }}>
         <Gif
+          key={spec.gifOverlay.url}
           src={spec.gifOverlay.url}
-          style={{
-            maxWidth: "100%",
-            maxHeight: "100%",
-            objectFit: "contain",
-          }}
+          width={600}
+          height={450}
+          fit="contain"
         />
       </div>
       )}
