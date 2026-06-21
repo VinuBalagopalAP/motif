@@ -31,7 +31,7 @@ The app features a fully threaded, ChatGPT-style chat interface that seamlessly 
 - **Persistent Normal Chats**: All normal conversations are permanently saved to your Library as active threads.
 - **In-Chat Video Generation**: Requesting a video inside an ongoing chat drops the generated Remotion video player directly inline within the conversation feed, without breaking the session.
 - **Variant Regeneration & Feedback**: Don't like a generation? Hit Regenerate to spawn variants in-place, and use `< >` arrows to page through them seamlessly. Provide Thumbs Up/Down feedback mapped directly to the active variant.
-- **Rich Artifacts**: Code blocks, complex data, and markdown documents are beautifully rendered using a custom XML artifact system with `react-syntax-highlighter`.
+- **Rich Artifacts & Interactive Canvas**: Code blocks, complex data, and markdown documents are beautifully rendered using a custom XML `<artifact>` system. Clicking an artifact slides out a dedicated split-pane layout powered by `@codesandbox/sandpack-react`, delivering an IDE-grade code viewing experience.
 - **Perfect Session Rehydration**: Clicking a thread from the sidebar instantly reconstructs your entire conversation history, re-rendering all text bubbles, variants, and inline video players perfectly.
 
 ### 🔗 Social Sharing Ecosystem

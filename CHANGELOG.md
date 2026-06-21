@@ -2,6 +2,14 @@
 
 All notable changes to the Motif UGC Video Generator will be documented in this file.
 
+## [1.3.0] - 2026-06-21
+
+### Added
+- **Interactive Split-Pane Canvas**: Extracted the rich artifact rendering system into a dedicated, slide-out split-pane layout to ensure a clean chat feed.
+- **Sandpack Integration**: Replaced standard code blocks with `@codesandbox/sandpack-react` to deliver a true "IDE feel", featuring robust syntax highlighting, line numbers, and intelligent wrapping.
+- **Transient Local State**: The canvas code views are rendered exclusively in local browser session state. This ensures massive code artifacts do not bloat the backend database history while remaining fully visible and manageable.
+- **Clean Read-Only Mode**: Forced the Sandpack code editor into a strict read-only mode to prevent accidental keystrokes, keeping the UI strictly focused as a clean viewer with one-click Copy and Close controls.
+
 ## [1.2.0] - 2026-06-21
 
 ### Added
