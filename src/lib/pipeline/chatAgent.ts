@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { logApiHit } from './logger';
+import * as XLSX from 'xlsx';
 
 export interface ChatSource {
   url: string;
@@ -26,6 +27,21 @@ async function fetchAsBase64(url: string): Promise<string | null> {
   }
 }
 
+async function fetchAndParseDataFile(url: string): Promise<string | null> {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const arrayBuffer = await res.arrayBuffer();
+    const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+    const firstSheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[firstSheetName];
+    return XLSX.utils.sheet_to_csv(worksheet);
+  } catch (e) {
+    console.error('Failed to parse data file:', e);
+    return null;
+  }
+}
+
 async function toAnthropicMessages(history: any[], message: string, newAttachments: any[] = []): Promise<Anthropic.MessageParam[]> {
   const messages: Anthropic.MessageParam[] = [];
 
@@ -37,12 +53,19 @@ async function toAnthropicMessages(history: any[], message: string, newAttachmen
       if (atts.length > 0) {
         const contentBlocks: Anthropic.ContentBlockParam[] = [];
         for (const att of atts) {
-          const base64 = await fetchAsBase64(att.url);
-          if (base64) {
-            if (att.type.startsWith('image/')) {
-              contentBlocks.push({ type: 'image', source: { type: 'base64', media_type: att.type as any, data: base64 } });
-            } else if (att.type === 'application/pdf') {
-              contentBlocks.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } });
+          if (att.type === 'text/csv' || att.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') {
+            const csvData = await fetchAndParseDataFile(att.url);
+            if (csvData) {
+              contentBlocks.push({ type: 'text', text: `<data_file name="${att.name}">\n${csvData}\n</data_file>` });
+            }
+          } else {
+            const base64 = await fetchAsBase64(att.url);
+            if (base64) {
+              if (att.type.startsWith('image/')) {
+                contentBlocks.push({ type: 'image', source: { type: 'base64', media_type: att.type as any, data: base64 } });
+              } else if (att.type === 'application/pdf') {
+                contentBlocks.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } });
+              }
             }
           }
         }
@@ -60,12 +83,19 @@ async function toAnthropicMessages(history: any[], message: string, newAttachmen
   if (newAttachments && newAttachments.length > 0) {
     const contentBlocks: Anthropic.ContentBlockParam[] = [];
     for (const att of newAttachments) {
-      const base64 = await fetchAsBase64(att.url);
-      if (base64) {
-        if (att.type.startsWith('image/')) {
-          contentBlocks.push({ type: 'image', source: { type: 'base64', media_type: att.type as any, data: base64 } });
-        } else if (att.type === 'application/pdf') {
-          contentBlocks.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } });
+      if (att.type === 'text/csv' || att.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') {
+        const csvData = await fetchAndParseDataFile(att.url);
+        if (csvData) {
+          contentBlocks.push({ type: 'text', text: `<data_file name="${att.name}">\n${csvData}\n</data_file>` });
+        }
+      } else {
+        const base64 = await fetchAsBase64(att.url);
+        if (base64) {
+          if (att.type.startsWith('image/')) {
+            contentBlocks.push({ type: 'image', source: { type: 'base64', media_type: att.type as any, data: base64 } });
+          } else if (att.type === 'application/pdf') {
+            contentBlocks.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } });
+          }
         }
       }
     }
@@ -92,6 +122,16 @@ Format:
 <artifact identifier="unique-id-like-filename" type="code | react | markdown | document" title="Human Readable Title">
   // Your code or markdown content here
 </artifact>
+
+DATA VISUALIZATION & CHARTS:
+When the user uploads data (CSV/Excel) and asks for analysis, or asks you to generate a chart/graph, you MUST generate a functional React component using \`recharts\` to visualize it.
+- Use \`<artifact type="react" identifier="chart">\`
+- Import Recharts STRICTLY like this: \`import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';\`
+- DO NOT import duplicate components (e.g. \`ResponsiveContainer\` twice).
+- DO NOT import from \`recharts/lib/...\`.
+- Ensure the chart is wrapped in \`<ResponsiveContainer width="100%" height={400}>\`.
+- YOU MUST USE \`export default function App() { ... }\` so Sandpack can render it from \`App.tsx\`.
+
 Do not use markdown code blocks inside the artifact tag if the artifact is already code. Just put the raw content inside the XML tag. You can still use markdown outside the artifact for conversational text.
 
 Only mention that Motif can generate UGC videos if the user explicitly asks what you do or how you can help. For casual small talk (e.g. "hi", "how are you"), just chat naturally without searching the web or mentioning videos.`;

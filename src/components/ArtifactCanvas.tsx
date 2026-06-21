@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { SandpackProvider, SandpackCodeEditor, SandpackLayout } from '@codesandbox/sandpack-react';
+import { SandpackProvider, SandpackCodeEditor, SandpackLayout, SandpackPreview } from '@codesandbox/sandpack-react';
 import ReactMarkdown from 'react-markdown';
 
 export interface ParsedArtifact {
@@ -19,6 +19,7 @@ interface ArtifactCanvasProps {
 
 export function ArtifactCanvas({ artifact, onClose }: ArtifactCanvasProps) {
   const [copied, setCopied] = useState(false);
+  const [activeTab, setActiveTab] = useState<'preview' | 'code'>('preview');
 
   const isCode = artifact.type === 'code' || artifact.type === 'react';
   const mainFile = artifact.type === 'react' ? '/App.tsx' : '/index.ts';
@@ -47,6 +48,32 @@ export function ArtifactCanvas({ artifact, onClose }: ArtifactCanvasProps) {
             <h2 className="text-sm font-bold text-[#282828] truncate">{artifact.title}</h2>
           </div>
         </div>
+
+        {isCode && artifact.type === 'react' && (
+          <div className="flex bg-gray-100 p-0.5 rounded-lg border border-gray-200">
+            <button
+              onClick={() => setActiveTab('preview')}
+              className={`px-3 py-1 text-xs font-semibold rounded-md transition-all ${
+                activeTab === 'preview' 
+                  ? 'bg-white text-gray-800 shadow-sm' 
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Preview
+            </button>
+            <button
+              onClick={() => setActiveTab('code')}
+              className={`px-3 py-1 text-xs font-semibold rounded-md transition-all ${
+                activeTab === 'code' 
+                  ? 'bg-white text-gray-800 shadow-sm' 
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Code
+            </button>
+          </div>
+        )}
+
         <div className="flex items-center gap-2 flex-shrink-0">
           <button
             onClick={handleCopy}
@@ -86,19 +113,34 @@ export function ArtifactCanvas({ artifact, onClose }: ArtifactCanvasProps) {
             files={{
               [mainFile]: artifact.content
             }}
+            customSetup={{
+              dependencies: {
+                recharts: "latest",
+                "react-is": "latest",
+                "prop-types": "latest",
+                "lucide-react": "^0.300.0"
+              }
+            }}
             options={{
               visibleFiles: [mainFile],
               activeFile: mainFile,
             }}
             style={{ display: 'flex', flex: 1, flexDirection: 'column' }}
           >
-            <SandpackLayout style={{ flex: 1, border: 'none', borderRadius: 0 }}>
+            <SandpackLayout style={{ height: 'calc(100vh - 57px)', border: 'none', borderRadius: 0 }}>
+              {artifact.type === 'react' && (
+                <SandpackPreview 
+                  showOpenInCodeSandbox={false}
+                  showRefreshButton={true}
+                  style={{ display: activeTab === 'preview' ? 'flex' : 'none', height: 'calc(100vh - 57px)' }}
+                />
+              )}
               <SandpackCodeEditor 
                 showTabs={false} 
                 showLineNumbers={true}
                 wrapContent={true}
                 readOnly={true}
-                style={{ height: '100%', width: '100%' }}
+                style={{ display: (!isCode || artifact.type !== 'react' || activeTab === 'code') ? 'flex' : 'none', height: 'calc(100vh - 57px)', overflow: 'auto' }}
               />
             </SandpackLayout>
           </SandpackProvider>
