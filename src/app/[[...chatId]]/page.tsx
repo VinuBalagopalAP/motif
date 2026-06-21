@@ -609,8 +609,77 @@ export default function ChatApp() {
         },
         body: JSON.stringify({ jobId })
       });
-      if (res.ok) {
-        fetchHistory(); // Reload history to get the new variant
+      
+      const contentType = res.headers.get("content-type");
+      if (contentType && contentType.includes("application/x-ndjson")) {
+        const reader = res.body?.getReader();
+        if (!reader) return;
+        const decoder = new TextDecoder();
+        let buffer = "";
+        
+        let currentReply = "";
+        let currentSources: any[] = [];
+        let currentStatus = "";
+
+        setMessages(prev => prev.map(m => {
+          if (m.id === msgId) {
+            const variants = [...(m.variants || [{ type: m.type, content: m.content, sources: m.sources }])];
+            variants.push({ type: 'chat', content: '', sources: [] });
+            return { ...m, variants, activeVariantIndex: variants.length - 1, job: { ...m.job, status: 'started' } as any };
+          }
+          return m;
+        }));
+
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || "";
+          
+          for (const line of lines) {
+            if (!line.trim()) continue;
+            try {
+              const event = JSON.parse(line);
+              
+              if (event.type === 'status') {
+                currentStatus = event.message;
+                setMessages(prev => prev.map(m => m.id === msgId ? { ...m, job: { ...m.job, status: currentStatus } as any } : m));
+              } else if (event.type === 'text') {
+                currentReply += event.text;
+                setMessages(prev => prev.map(m => {
+                  if (m.id === msgId) {
+                    const variants = [...(m.variants || [])];
+                    if (variants.length > 0) {
+                      variants[variants.length - 1] = { ...variants[variants.length - 1], content: currentReply };
+                    }
+                    return { ...m, content: currentReply, variants, job: { ...m.job, status: 'started', product_json: { chat_reply: currentReply } } as any };
+                  }
+                  return m;
+                }));
+              } else if (event.type === 'done') {
+                currentSources = event.sources || [];
+                setMessages(prev => prev.map(m => {
+                  if (m.id === msgId) {
+                    const variants = [...(m.variants || [])];
+                    if (variants.length > 0) {
+                      variants[variants.length - 1] = { ...variants[variants.length - 1], content: event.reply, sources: currentSources };
+                    }
+                    return { ...m, content: event.reply, sources: currentSources, variants, job: { ...m.job, status: 'done', product_json: { chat_reply: event.reply, sources: currentSources } } as any };
+                  }
+                  return m;
+                }));
+              }
+            } catch (e) {
+              console.error("Stream parse error", e);
+            }
+          }
+        }
+      } else {
+        if (res.ok) {
+          fetchHistory(); // Video job runs in background, polling will update UI
+        }
       }
     } catch (err) {
       console.error(err);
@@ -1285,13 +1354,14 @@ export default function ChatApp() {
                         if (e.key === 'Enter') {
                           if (e.metaKey || e.ctrlKey || !e.shiftKey) {
                             e.preventDefault();
-                            runGeneration(input);
+                            if (!loading && !isGenerating && !uploadingFiles && (input.trim() || attachments.length > 0)) {
+                              runGeneration(input);
+                            }
                           }
                         }
                       }}
                       placeholder={isGenerating ? "Generating..." : uploadingFiles ? "Uploading..." : "Message or paste a link..."}
                       className="flex-1 bg-transparent text-[#282828] placeholder-gray-400 focus:outline-none resize-none py-1.5 px-2 text-[15px] leading-relaxed [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] min-w-0"
-                      disabled={loading || isGenerating || uploadingFiles}
                       rows={1}
                     />
                     <button

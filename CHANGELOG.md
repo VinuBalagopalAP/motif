@@ -10,6 +10,8 @@ All notable changes to the Motif UGC Video Generator will be documented in this 
 - **Non-Destructive Chat Editing**: Overhauled the prompt editing system for regular text chats. Editing a chat message no longer overrides the global `jobId`. Instead, it cleanly branches your conversation, truncates the local history to that specific point, and fires off a fresh stream.
 
 ### Fixed
+- **Streaming Variant Regeneration**: Fixed a major bug where regenerating a Chat message would fallback to generating a video skeleton and require a manual page refresh. `api/chat/regenerate` now correctly streams the NDJSON payload back to the client, allowing real-time character-by-character UI updates for variants.
+- **Typing Lockout Bug**: Fixed a UX oversight where the chat `textarea` would become completely disabled while the AI was generating a response in the background. Users can now seamlessly queue up their next thought or copy text from the input box while a generation is active.
 - **Stream Buffering Issues**: Fixed a critical Next.js App Router bug where Vercel/Nginx would aggressively buffer `ReadableStream` responses for up to 20 seconds. Added explicit `X-Accel-Buffering: no` and `no-transform` Cache-Control headers to forcefully disable HTTP buffering.
 - **Claude Beta Header Rejection**: Fixed an Anthropic `invalid_request_error` (`betas: Extra inputs are not permitted`) inside `classifyMessage.ts` by correctly binding the `pdfs-2024-09-25` flag to the SDK `defaultHeaders` rather than the JSON body.
 

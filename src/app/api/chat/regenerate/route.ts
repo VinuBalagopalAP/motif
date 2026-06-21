@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { after } from 'next/server';
 import { updateJobStatus, getJob } from '@/lib/jobs';
 import { runPipelineWorker } from '@/lib/pipeline/worker';
-import { runChatAgent } from '@/lib/pipeline/chatAgent';
+import { runChatAgentStream } from '@/lib/pipeline/chatAgent';
 
 export const maxDuration = 60; // Allow Vercel lambda to run up to 60s for background tasks
 
@@ -56,7 +56,7 @@ export async function POST(req: Request) {
 
     // Check what type of generation this is based on the LAST variant
     const lastVariant = assistantMessage.variants[assistantMessage.variants.length - 1];
-    const isChat = lastVariant?.type === 'chat';
+    const isChat = lastVariant?.type === 'chat' || (lastVariant?.content && !lastVariant?.render_spec);
 
     // Reset the job status
     await updateJobStatus(jobId, { 
@@ -65,24 +65,45 @@ export async function POST(req: Request) {
     }, token);
 
     if (isChat) {
-      // Re-run the chat agent
-      after(async () => {
-        try {
-          const agent = await runChatAgent(lastUserMsg.content, newHistory, lastUserMsg.attachments);
-          const reply = agent?.reply || "Hello! I can help you generate UGC videos.";
-          const sources = agent?.sources || [];
-          
-          assistantMessage.variants.push({ type: 'chat', content: reply, sources });
-          newHistory.push(assistantMessage);
+      const stream = new ReadableStream({
+        async start(controller) {
+          try {
+            let finalReply = "";
+            let finalSources: any[] = [];
+            
+            const generator = runChatAgentStream(lastUserMsg.content, newHistory, lastUserMsg.attachments);
+            for await (const event of generator) {
+              controller.enqueue(new TextEncoder().encode(JSON.stringify(event) + '\n'));
+              if (event.type === 'done') {
+                finalReply = event.reply;
+                finalSources = event.sources;
+              }
+            }
 
-          await updateJobStatus(jobId, {
-            product_json: { ...job.product_json, chat_history: newHistory },
-            status: 'done'
-          }, token);
-        } catch (e) {
-          console.error("Regenerate chat error", e);
-          await updateJobStatus(jobId, { status: 'error', error: "Failed to regenerate chat" }, token);
+            assistantMessage.variants.push({ type: 'chat', content: finalReply, sources: finalSources });
+            newHistory.push(assistantMessage);
+
+            await updateJobStatus(jobId, {
+              product_json: { ...job.product_json, chat_history: newHistory },
+              status: 'done'
+            }, token);
+            
+            controller.close();
+          } catch (e) {
+            console.error('Regenerate chat stream error:', e);
+            await updateJobStatus(jobId, { status: 'error', error: "Failed to regenerate chat" }, token);
+            controller.error(e);
+          }
         }
+      });
+
+      return new Response(stream, {
+        headers: {
+          'Content-Type': 'application/x-ndjson',
+          'Cache-Control': 'no-cache, no-transform',
+          'Connection': 'keep-alive',
+          'X-Accel-Buffering': 'no',
+        },
       });
     } else {
       // Re-run the video pipeline worker
@@ -90,9 +111,8 @@ export async function POST(req: Request) {
         // Pass the assistantMessage object directly to the worker so it can append to it
         await runPipelineWorker(jobId, lastUserMsg.content, token, newHistory, null, assistantMessage);
       });
+      return NextResponse.json({ success: true, type: 'video' });
     }
-
-    return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json({ error: 'Failed to regenerate job' }, { status: 500 });
   }
