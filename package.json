@@ -1,6 +1,6 @@
 {
   "name": "motif",
-  "version": "1.5.0",
+  "version": "1.7.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -13,6 +13,7 @@
     "@codesandbox/sandpack-react": "^2.20.0",
     "@google/generative-ai": "^0.24.1",
     "@remotion/gif": "^4.0.481",
+    "@remotion/google-fonts": "^4.0.481",
     "@remotion/player": "^4.0.481",
     "@supabase/supabase-js": "^2.108.2",
     "cheerio": "^1.2.0",
@@ -21,6 +22,7 @@
     "react-dom": "19.2.4",
     "react-markdown": "^10.1.0",
     "react-syntax-highlighter": "^16.1.1",
+    "react-textarea-autosize": "^8.5.9",
     "remark-gfm": "^4.0.1",
     "remotion": "^4.0.481",
     "xlsx": "^0.18.5"

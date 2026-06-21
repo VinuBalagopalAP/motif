@@ -1,10 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
 import { supabase } from './supabase';
-type JobStatus = 'queued' | 'started' | 'scraping' | 'planning' | 'picking_assets' | 'done' | 'error';
+type JobStatus = 'queued' | 'started' | 'scraping' | 'planning' | 'picking assets' | 'done' | 'error';
 
 export interface RenderSpec {
   durationSec: number;
   aspectRatio: "9:16";
+  backgroundMode?: 'video' | 'color';
+  backgroundColor?: string;
   background: {
     type: "image" | "video";
     url: string;
@@ -12,9 +14,34 @@ export interface RenderSpec {
   overlayText: {
     top: string;
     bottom?: string;
+    style?: {
+      fontFamily?: string;
+      topFontFamily?: string;
+      bottomFontFamily?: string;
+      linkFonts?: boolean;
+      topTextColor?: string;
+      bottomTextColor?: string;
+      topTextOpacity?: number;
+      bottomTextOpacity?: number;
+      showTopBackground?: boolean;
+      showBottomBackground?: boolean;
+      topY?: number;
+      bottomY?: number;
+      backgroundColor?: string;
+    };
+    showTextLayer?: boolean;
+    showTopText?: boolean;
+    showBottomText?: boolean;
   };
   gifOverlay: {
     url: string;
+    options?: string[];
+    showGifLayer?: boolean;
+    style?: {
+      x?: number;
+      y?: number;
+      scale?: number;
+    };
   };
   audio: {
     url: string;

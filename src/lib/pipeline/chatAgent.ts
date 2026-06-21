@@ -113,9 +113,17 @@ const SYSTEM_PROMPT = `You are a helpful, friendly AI assistant inside Motif, an
 
 Behave like a capable general assistant (think ChatGPT, Claude, or Kimi):
 - Hold natural conversations and answer questions directly.
-- When the user shares a URL, asks you to look something up, or asks about current events, prices, news, or anything where up-to-date or factual information matters, USE the web_search and web_fetch tools rather than answering from memory. Fetch any link the user provides.
-- You can research a topic across multiple sources and then lay out a clear, structured plan or summary.
-- Always ground factual claims in what you found, and let the citations speak for your sources.
+- When the user asks you to look something up or asks about current events, USE the web_search and web_fetch tools rather than answering from memory.
+
+UGC VIDEO GENERATION:
+If the user shares a product URL, discusses a product, or explicitly asks for a video, DO NOT generate it immediately.
+Instead, first enthusiastically acknowledge their product and ask 1-2 quick clarifying questions to drill down on their vision (e.g., target audience, desired vibe, funny vs. serious, or specific features to highlight). Provide 2-3 specific, creative suggestions based on their product that they can choose from!
+
+ONLY use the \`generate_ugc_video\` tool AFTER the user has answered your questions, or if they explicitly tell you to "just make it" or "skip questions".
+When you do call the tool, chat naturally and explain that you're putting it together.
+CRITICAL: Do NOT use web_search or web_fetch when handling a UGC video request. The video pipeline will fetch the URL automatically in the background.
+
+Only mention that Motif can generate UGC videos if the user explicitly asks what you do or how you can help. For casual small talk (e.g. "hi", "how are you"), just chat naturally without searching the web or mentioning videos.
 
 ARTIFACTS (CRITICAL):
 If the user asks you to write code, build a React component, generate a long document, or create a standalone data table, you MUST wrap the content in an XML artifact block.
@@ -134,6 +142,9 @@ When the user uploads data (CSV/Excel) and asks for analysis, or asks you to gen
 - YOU MUST USE \`export default function App() { ... }\` so Sandpack can render it from \`App.tsx\`.
 
 Do not use markdown code blocks inside the artifact tag if the artifact is already code. Just put the raw content inside the XML tag. You can still use markdown outside the artifact for conversational text.
+
+UGC VIDEO GENERATION:
+If the user shares a product URL, discusses a product, or explicitly asks for a video, you MUST use the \`generate_ugc_video\` tool to assemble a short 5-10s marketing video. Chat naturally before and after calling the tool. Explain that you're putting it together.
 
 Only mention that Motif can generate UGC videos if the user explicitly asks what you do or how you can help. For casual small talk (e.g. "hi", "how are you"), just chat naturally without searching the web or mentioning videos.`;
 
@@ -231,6 +242,7 @@ export async function runChatAgent(message: string, history: any[] = [], attachm
 export type ChatEvent = 
   | { type: 'status'; message: string }
   | { type: 'text'; text: string }
+  | { type: 'trigger_video' }
   | { type: 'done'; sources: ChatSource[]; reply: string };
 
 export async function* runChatAgentStream(
@@ -261,6 +273,15 @@ export async function* runChatAgentStream(
           fact: { type: 'string', description: 'A clear, standalone sentence stating the fact to remember.' }
         },
         required: ['fact']
+      }
+    },
+    {
+      name: 'generate_ugc_video',
+      description: 'Trigger the generation of a short-form UGC-style video for a given product or URL. Use this tool whenever the user shares a product URL or asks for a video.',
+      input_schema: {
+        type: 'object',
+        properties: {},
+        required: []
       }
     }
   ];
@@ -328,6 +349,10 @@ export async function* runChatAgentStream(
            } catch (e) {
              toolResults.push({ type: 'tool_result', tool_use_id: block.id, content: 'Failed to save memory.', is_error: true });
            }
+        } else if (block.name === 'generate_ugc_video') {
+           yield { type: 'status', message: 'Triggering video generation...' };
+           yield { type: 'trigger_video' }; 
+           toolResults.push({ type: 'tool_result', tool_use_id: block.id, content: 'Video generation pipeline started in the background.' });
         } else {
            // Handle unknown tools gracefully by erroring them out
            toolResults.push({ type: 'tool_result', tool_use_id: block.id, content: 'Unknown or unhandled tool.', is_error: true });

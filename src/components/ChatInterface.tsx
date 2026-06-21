@@ -47,7 +47,7 @@ export default function ChatApp() {
       .from('video_jobs')
       .select('*')
       .order('created_at', { ascending: false });
-    
+
     if (data) {
       setHistoryJobs(data);
     }
@@ -59,7 +59,7 @@ export default function ChatApp() {
         .from('video_jobs')
         .delete()
         .eq('id', jobId);
-      
+
       if (!error) {
         setHistoryJobs(prev => prev.filter(job => job.id !== jobId));
         if (messages.some(m => m.jobId === jobId)) {
@@ -78,9 +78,9 @@ export default function ChatApp() {
         .from('video_jobs')
         .update({ status: 'error', error: 'Cancelled by user' })
         .eq('id', jobId);
-      
+
       if (!error) {
-        setMessages(prev => prev.map(m => 
+        setMessages(prev => prev.map(m =>
           m.jobId === jobId && m.job ? { ...m, job: { ...m.job, status: 'error', error: 'Cancelled by user' } } : m
         ));
       }
@@ -109,7 +109,7 @@ export default function ChatApp() {
   // Polling for job status
   useEffect(() => {
     const activeJobs = messages.filter(m => m.jobId && (!m.job || m.job.status !== 'done' && m.job.status !== 'error'));
-    
+
     if (activeJobs.length === 0) return;
 
     const interval = setInterval(async () => {
@@ -129,7 +129,7 @@ export default function ChatApp() {
             if (msgIndex !== -1 && JSON.stringify(nextMessages[msgIndex].job) !== JSON.stringify(job)) {
               nextMessages[msgIndex].job = job;
               updated = true;
-              
+
               if (job.status === 'done' || job.status === 'error') {
                 fetchHistory(); // refresh sidebar
               }
@@ -153,7 +153,7 @@ export default function ChatApp() {
 
     const userMessage: Message = { id: Date.now().toString(), role: "user", content: prompt };
     const assistantMessage: Message = { id: (Date.now() + 1).toString(), role: "assistant", content: "" };
-    
+
     setMessages(prev => [...prev, userMessage, assistantMessage]);
     setInput("");
     setLoading(true);
@@ -161,25 +161,25 @@ export default function ChatApp() {
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
-        headers: { 
+        headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${session.access_token}`
         },
-        body: JSON.stringify({ 
-          message: prompt, 
+        body: JSON.stringify({
+          message: prompt,
           userId: user.id,
           chatId: activeChatId,
-          history: messages.map(m => ({ 
-            role: m.role, 
-            content: m.role === 'assistant' ? (m.job?.product_json?.chat_reply || "Generated a video.") : m.content 
+          history: messages.map(m => ({
+            role: m.role,
+            content: m.role === 'assistant' ? (m.job?.product_json?.chat_reply || "Generated a video.") : m.content
           }))
         })
       });
       const data = await res.json();
-      
+
       if (data.isChat) {
         if (!activeChatId && data.chatId) setActiveChatId(data.chatId);
-        setMessages(prev => prev.map(m => 
+        setMessages(prev => prev.map(m =>
           m.id === assistantMessage.id ? {
             ...m,
             job: { status: 'done', product_json: { chat_reply: data.reply, sources: data.sources } } as any
@@ -188,7 +188,7 @@ export default function ChatApp() {
         fetchHistory();
       } else {
         if (!activeChatId && data.chatId) setActiveChatId(data.chatId);
-        setMessages(prev => prev.map(m => 
+        setMessages(prev => prev.map(m =>
           m.id === assistantMessage.id ? { ...m, jobId: data.jobId } : m
         ));
         fetchHistory(); // Only fetch history for UGC video jobs
@@ -210,14 +210,14 @@ export default function ChatApp() {
     try {
       const res = await fetch("/api/chat/regenerate", {
         method: "POST",
-        headers: { 
+        headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${session.access_token}`
         },
         body: JSON.stringify({ jobId })
       });
       if (res.ok) {
-        setMessages(prev => prev.map(m => 
+        setMessages(prev => prev.map(m =>
           m.jobId === jobId ? { ...m, job: { ...m.job, status: 'started' } as any } : m
         ));
       }
@@ -237,7 +237,7 @@ export default function ChatApp() {
     try {
       const res = await fetch("/api/chat/edit", {
         method: "POST",
-        headers: { 
+        headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${session.access_token}`
         },
@@ -294,8 +294,8 @@ export default function ChatApp() {
     <div className="flex h-[100dvh] bg-[#ffffff] text-[#282828] font-sans selection:bg-[#c3f3b9]">
       {/* Mobile Overlay Backdrop */}
       {mobileMenuOpen && (
-        <div 
-          className="fixed inset-0 bg-black/20 z-40 md:hidden transition-opacity" 
+        <div
+          className="fixed inset-0 bg-black/20 z-40 md:hidden transition-opacity"
           onClick={() => setMobileMenuOpen(false)}
         />
       )}
@@ -307,7 +307,7 @@ export default function ChatApp() {
         md:relative md:translate-x-0 md:flex
       `}>
         <div className="p-6 flex flex-col gap-4">
-          <button 
+          <button
             onClick={() => { setActiveChatId(null); setMessages([]); setMobileMenuOpen(false); }}
             className="flex items-center justify-center gap-2 bg-[#08c225] hover:bg-[#00b33c] text-white rounded-[16px] px-4 py-3 font-semibold text-sm shadow-[0_4px_12px_rgba(8,194,37,0.2)] hover:shadow-[0_6px_16px_rgba(8,194,37,0.3)] transition-all duration-200"
           >
@@ -317,19 +317,19 @@ export default function ChatApp() {
             New Chat
           </button>
         </div>
-        
+
         <div className="flex-1 overflow-y-auto px-4 py-2">
           <div className="text-xs font-semibold text-[#757575] mb-4 px-2 uppercase tracking-wider">Library</div>
           <div className="space-y-1">
             {historyJobs.map(job => (
               <div key={job.id} className="group flex items-center w-full hover:bg-gray-200/50 rounded-xl transition-colors">
-                <button 
+                <button
                   onClick={() => { loadJob(job); setMobileMenuOpen(false); }}
                   className="flex-1 text-left truncate px-3 py-2.5 text-sm font-medium text-[#282828]"
                 >
                   {job.message}
                 </button>
-                <button 
+                <button
                   onClick={(e) => { e.stopPropagation(); deleteJob(job.id); }}
                   className="opacity-0 group-hover:opacity-100 p-2 text-gray-400 hover:text-red-500 transition-all"
                   title="Delete video"
@@ -386,11 +386,10 @@ export default function ChatApp() {
             ) : (
               messages.map((m) => (
                 <div key={m.id} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start w-full'}`}>
-                  <div className={`${
-                    m.role === 'user' 
-                      ? 'max-w-[80%] bg-[#f9f9fa] text-[#282828] rounded-[24px] px-6 py-4 font-medium text-sm border border-gray-100 shadow-sm' 
+                  <div className={`${m.role === 'user'
+                      ? 'max-w-[80%] bg-[#f9f9fa] text-[#282828] rounded-[24px] px-6 py-4 font-medium text-sm border border-gray-100 shadow-sm'
                       : 'w-full'
-                  }`}>
+                    }`}>
                     {m.role === 'user' ? (
                       <div className="relative group/msg">
                         {editingMsgId === m.id ? (
@@ -403,13 +402,13 @@ export default function ChatApp() {
                             />
                             <div className="flex justify-end gap-2">
                               <button onClick={() => setEditingMsgId(null)} className="px-3 py-1.5 text-xs font-semibold text-gray-500 hover:text-gray-700 bg-gray-100 rounded-lg">Cancel</button>
-                              <button onClick={() => handleEditSubmit(m.id.replace('user-', ''), m.content)} className="px-3 py-1.5 text-xs font-semibold text-white bg-[#08c225] hover:bg-[#00b33c] rounded-lg">Save & Generate</button>
+                              <button onClick={() => handleEditSubmit(m.id.replace('user-', ''), m.content)} className="px-3 py-1.5 text-xs font-semibold text-white bg-[#08c225] hover:bg-[#00b33c] rounded-lg">Send</button>
                             </div>
                           </div>
                         ) : (
                           <>
                             <p className="whitespace-pre-wrap leading-relaxed pr-8">{m.content}</p>
-                            <button 
+                            <button
                               onClick={() => { setEditingMsgId(m.id); setEditInput(m.content); }}
                               className="absolute top-0 right-0 opacity-100 md:opacity-0 md:group-hover/msg:opacity-100 p-1.5 text-gray-400 hover:text-[#08c225] transition-all bg-[#f9f9fa] rounded-md"
                               title="Edit prompt"
@@ -447,7 +446,7 @@ export default function ChatApp() {
                                 Rendered at 60fps
                               </div>
                             </div>
-                            
+
                             <div className="flex gap-3 w-full">
                               <button
                                 onClick={() => handleRegenerate(m.jobId!)}
@@ -473,41 +472,41 @@ export default function ChatApp() {
                           <div className="flex flex-col gap-1 w-fit max-w-[80%] group/reply">
                             <div className="bg-white text-[#282828] rounded-[24px] px-6 py-4 font-medium text-sm border border-gray-100 shadow-sm">
                               <ReactMarkdown
-                              components={{
-                                p: ({node, ...props}) => <p className="whitespace-pre-wrap leading-relaxed mb-4 last:mb-0" {...props} />,
-                                h1: ({node, ...props}) => <h1 className="text-xl font-bold mb-3 mt-4 first:mt-0" {...props} />,
-                                h2: ({node, ...props}) => <h2 className="text-lg font-bold mb-3 mt-4 first:mt-0" {...props} />,
-                                h3: ({node, ...props}) => <h3 className="text-base font-bold mb-2 mt-3 first:mt-0" {...props} />,
-                                ul: ({node, ...props}) => <ul className="list-disc pl-5 mb-4 space-y-1 last:mb-0" {...props} />,
-                                ol: ({node, ...props}) => <ol className="list-decimal pl-5 mb-4 space-y-1 last:mb-0" {...props} />,
-                                li: ({node, ...props}) => <li className="" {...props} />,
-                                a: ({node, ...props}) => <a className="text-[#08c225] hover:underline" target="_blank" rel="noopener noreferrer" {...props} />,
-                                strong: ({node, ...props}) => <strong className="font-bold" {...props} />,
-                                em: ({node, ...props}) => <em className="italic" {...props} />,
-                                blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-gray-200 pl-4 italic text-gray-600 mb-4" {...props} />,
-                              }}
-                            >
-                              {m.job.product_json.chat_reply}
-                            </ReactMarkdown>
-                            {Array.isArray(m.job.product_json.sources) && m.job.product_json.sources.length > 0 && (
-                              <div className="mt-3 pt-3 border-t border-gray-100">
-                                <div className="text-[11px] font-semibold uppercase tracking-wide text-[#9a9a9a] mb-1.5">Sources</div>
-                                <div className="flex flex-col gap-1">
-                                  {m.job.product_json.sources.map((s: { url: string; title: string }, i: number) => (
-                                    <a
-                                      key={i}
-                                      href={s.url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="text-[13px] text-[#08c225] hover:underline truncate"
-                                      title={s.url}
-                                    >
-                                      {i + 1}. {s.title || s.url}
-                                    </a>
-                                  ))}
+                                components={{
+                                  p: ({ node, ...props }) => <p className="whitespace-pre-wrap leading-relaxed mb-4 last:mb-0" {...props} />,
+                                  h1: ({ node, ...props }) => <h1 className="text-xl font-bold mb-3 mt-4 first:mt-0" {...props} />,
+                                  h2: ({ node, ...props }) => <h2 className="text-lg font-bold mb-3 mt-4 first:mt-0" {...props} />,
+                                  h3: ({ node, ...props }) => <h3 className="text-base font-bold mb-2 mt-3 first:mt-0" {...props} />,
+                                  ul: ({ node, ...props }) => <ul className="list-disc pl-5 mb-4 space-y-1 last:mb-0" {...props} />,
+                                  ol: ({ node, ...props }) => <ol className="list-decimal pl-5 mb-4 space-y-1 last:mb-0" {...props} />,
+                                  li: ({ node, ...props }) => <li className="" {...props} />,
+                                  a: ({ node, ...props }) => <a className="text-[#08c225] hover:underline" target="_blank" rel="noopener noreferrer" {...props} />,
+                                  strong: ({ node, ...props }) => <strong className="font-bold" {...props} />,
+                                  em: ({ node, ...props }) => <em className="italic" {...props} />,
+                                  blockquote: ({ node, ...props }) => <blockquote className="border-l-4 border-gray-200 pl-4 italic text-gray-600 mb-4" {...props} />,
+                                }}
+                              >
+                                {m.job.product_json.chat_reply}
+                              </ReactMarkdown>
+                              {Array.isArray(m.job.product_json.sources) && m.job.product_json.sources.length > 0 && (
+                                <div className="mt-3 pt-3 border-t border-gray-100">
+                                  <div className="text-[11px] font-semibold uppercase tracking-wide text-[#9a9a9a] mb-1.5">Sources</div>
+                                  <div className="flex flex-col gap-1">
+                                    {m.job.product_json.sources.map((s: { url: string; title: string }, i: number) => (
+                                      <a
+                                        key={i}
+                                        href={s.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-[13px] text-[#08c225] hover:underline truncate"
+                                        title={s.url}
+                                      >
+                                        {i + 1}. {s.title || s.url}
+                                      </a>
+                                    ))}
+                                  </div>
                                 </div>
-                              </div>
-                            )}
+                              )}
                             </div>
                             <div className="flex items-center gap-1 px-3 text-gray-400 opacity-0 group-hover/reply:opacity-100 transition-opacity">
                               <button onClick={() => navigator.clipboard.writeText(m.job!.product_json.chat_reply)} className="p-1.5 hover:bg-gray-100 hover:text-gray-700 rounded-lg transition-colors" title="Copy">
@@ -551,8 +550,8 @@ export default function ChatApp() {
                               <div className="w-10 h-10 border-2 border-gray-200 border-t-[#08c225] rounded-full animate-spin"></div>
                               <div className="text-sm font-medium text-[#757575]">
                                 {m.job?.status === 'scraping' ? 'Analyzing source...' :
-                                 m.job?.status === 'planning' ? 'Generating assets...' :
-                                 'Rendering video...'}
+                                  m.job?.status === 'planning' ? 'Generating assets...' :
+                                    'Rendering video...'}
                               </div>
                               <button
                                 onClick={() => m.jobId && stopJob(m.jobId)}
@@ -598,7 +597,7 @@ export default function ChatApp() {
                   disabled={loading || isGenerating}
                   rows={1}
                 />
-                <button 
+                <button
                   type="submit"
                   disabled={loading || !input.trim() || isGenerating}
                   className="absolute right-2 bottom-1.5 text-white bg-[#08c225] hover:bg-[#00b33c] rounded-[16px] w-10 h-10 flex items-center justify-center disabled:opacity-40 disabled:hover:bg-[#08c225] transition-all duration-200"
@@ -622,7 +621,7 @@ export default function ChatApp() {
       {exportModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white rounded-[24px] shadow-2xl max-w-md w-full p-8 relative animate-in zoom-in-95 duration-200">
-            <button 
+            <button
               onClick={() => setExportModalOpen(false)}
               className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-full transition-colors"
             >
@@ -630,13 +629,13 @@ export default function ChatApp() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
-            
+
             <div className="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center mb-6">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6 text-blue-500">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
               </svg>
             </div>
-            
+
             <h3 className="text-xl font-bold text-[#282828] mb-3">Serverless Demo Mode</h3>
             <p className="text-sm text-gray-600 mb-4 leading-relaxed">
               To keep this demonstration <strong>100% serverless and zero-cost</strong> on Vercel, the FFmpeg MP4 rendering backend (`@remotion/lambda`) is intentionally disabled.
@@ -644,12 +643,12 @@ export default function ChatApp() {
             <p className="text-sm text-gray-600 mb-6 leading-relaxed">
               Running heavy FFmpeg encoders inside a Next.js serverless function is an anti-pattern that crashes under load. In a production environment, this button would trigger a scalable AWS Lambda function to render the MP4 to an S3 bucket!
             </p>
-            
+
             <div className="bg-gray-50 border border-gray-100 rounded-xl p-4 mb-6">
               <p className="text-sm font-medium text-gray-700">💡 <strong>Tip for Evaluators:</strong> You can simply screen-record the web player to save the result!</p>
             </div>
-            
-            <button 
+
+            <button
               onClick={() => setExportModalOpen(false)}
               className="w-full py-3 bg-[#282828] hover:bg-black text-white font-semibold rounded-[16px] transition-colors"
             >

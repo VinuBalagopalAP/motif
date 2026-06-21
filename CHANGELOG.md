@@ -2,11 +2,34 @@
 
 All notable changes to the Motif UGC Video Generator will be documented in this file.
 
+## [1.7.0] - 2026-06-22
+
+### Added
+- **Interactive Typography Controls**: Upgraded the video editor UI in `page.tsx` to include rich typography controls for the Top Hook and Bottom CTA text. Users can now tweak font families, colors, opacity, and Y-axis positioning in real-time.
+- **Google Fonts Integration**: Integrated `@remotion/google-fonts` to support a curated selection of premium Google Fonts (Montserrat, Roboto, Bangers, Permanent Marker, Anton, Oswald, Playfair Display) seamlessly within the Remotion player.
+- **Link/Unlink Fonts Toggle**: Added a UI toggle allowing users to link typography styles across both text hooks or style them completely independently.
+- **Custom Font Uploads**: Users can now upload their own `.ttf` and `.otf` font files. Fonts are securely stored in a dedicated, public Supabase `fonts` bucket. The Remotion player uses the `FontFace` API and `delayRender` to dynamically load the custom font and prevent invisible text flashes (FOIT).
+- **Coverr API Backgrounds**: Integrated the Coverr API (`api.coverr.co`) to source high-end, premium cinematic stock footage.
+- **Advanced Meme Caching**: Introduced a global caching layer via Supabase `cached_assets` and `cached_trends` to prevent rate-limiting on external APIs and drastically speed up generation for repeated trending concepts.
+- **Enhanced GIF Ecosystem**: Added powerful integrations for `Klipy` and `API League` to supplement Giphy, running all 3 requests in parallel (upon cache miss) to pull the top 15 most relevant reaction stickers.
+- **Partial Message Regeneration**: Deployed a new `/api/chat/regenerate-partial` endpoint allowing the AI to surgically repair and regenerate specific chunks of the conversation flow.
+
+### Changed
+- **Streamlined Classification**: Refactored the internal pipeline, deprecating the isolated `classifyMessage.ts` module by folding intent classification natively into the `chatAgent` extraction layer, saving a redundant LLM round-trip.
+- **Pooled Asset Variety**: Refactored the `pickAssets` pipeline to execute Pexels and Coverr searches simultaneously using `Promise.allSettled`. Results are pooled together and randomly selected to maximize the visual variety of generated memes.
+- **Auto-sizing Text Areas**: Upgraded to `react-textarea-autosize` for all prompt inputs, providing a buttery-smooth multi-line typing experience compared to standard textareas.
+
+### Fixed
+- **Export UI Clarity**: Added a helpful tip to the export modal informing users that they can simply screen-record the web player to save the result.
+- **Supabase DB Synchronization**: Created automated SQL migrations (`0006`, `0007`, `0008`) to reliably sync remote tables and buckets instead of relying on manual dashboard configuration.
+
 ## [1.6.0] - 2026-06-21
 
 ### Added
 - **Persistent Memory (Fact Extraction)**: Motif now acts like ChatGPT's Memory system! The AI can proactively extract personal preferences, brand guidelines, and rules that the user shares and save them persistently.
 - **Dynamic Context Injection**: Whenever a new chat is started, the user's isolated facts are fetched from the new `user_memories` table and seamlessly injected into the `SYSTEM_PROMPT`. This guarantees the AI respects the user's brand tone and color palettes across *all* future conversations.
+
+### Changed
 - **Claude Tool-Use Pipeline**: Upgraded the NDJSON streaming backend to successfully intercept, pause, and execute the custom `save_memory` server tool mid-stream, storing facts directly into Supabase via RLS policies before resuming the chat.
 
 ## [1.5.0] - 2026-06-21
@@ -15,12 +38,16 @@ All notable changes to the Motif UGC Video Generator will be documented in this 
 - **Interactive Data Analysis**: Motif is no longer just a video generator—it's a powerful data analysis engine. The agent can now natively process spreadsheets and generate dynamic, interactive charts.
 - **Spreadsheet Support**: The file uploader now fully supports `.csv` and `.xlsx` files. The backend uses the `xlsx` library to natively parse spreadsheets into clean markdown tables for Claude to analyze.
 - **Recharts Integration**: When analyzing data, Claude is explicitly instructed to build beautiful React visualizations using the `recharts` library. 
-- **Sandpack UX Overhaul**: Completely rebuilt the Artifact Canvas. It now features a sleek **[Preview] | [Code]** tab bar, allowing users to seamlessly toggle between the interactive chart and the raw React code.
-- **Flawless DOM Stability**: Inactive Canvas tabs are now hidden via CSS (`display: none`) rather than unmounted, preventing the Sandpack bundler from crashing or losing state when switching views.
-- **CodeMirror Scroll Fixes**: Bypassed Sandpack's notoriously buggy Flexbox height inheritance by injecting explicit `calc(100vh - 57px)` bounds. The Code editor now perfectly wraps long lines and scrolls vertically without clipping.
 - **Beautiful Markdown Tables**: Integrated the `remark-gfm` plugin into `<ReactMarkdown>` to cleanly render markdown tables with borders and padding instead of broken raw text.
+
+### Changed
+- **Sandpack UX Overhaul**: Completely rebuilt the Artifact Canvas. It now features a sleek **[Preview] | [Code]** tab bar, allowing users to seamlessly toggle between the interactive chart and the raw React code.
 - **Sleek Streaming UI**: Overhauled the `<artifact>` tag parser. When the AI is generating code, it now renders a sleek, pulsing "Generating [Title]... [Writing Code]" accordion block instead of dumping raw code vomit into the chat stream.
 - **Proportional Panel Layout**: Adjusted the Chat feed to use dynamic flex percentages (`md:w-[45%] max-w-[600px]`). The Sidebar, Chat, and Canvas now perfectly distribute across wide monitors without cramping.
+
+### Fixed
+- **Flawless DOM Stability**: Inactive Canvas tabs are now hidden via CSS (`display: none`) rather than unmounted, preventing the Sandpack bundler from crashing or losing state when switching views.
+- **CodeMirror Scroll Fixes**: Bypassed Sandpack's notoriously buggy Flexbox height inheritance by injecting explicit `calc(100vh - 57px)` bounds. The Code editor now perfectly wraps long lines and scrolls vertically without clipping.
 
 ## [1.4.0] - 2026-06-21
 
@@ -39,9 +66,11 @@ All notable changes to the Motif UGC Video Generator will be documented in this 
 ## [1.3.0] - 2026-06-21
 
 ### Added
+- **Transient Local State**: The canvas code views are rendered exclusively in local browser session state. This ensures massive code artifacts do not bloat the backend database history while remaining fully visible and manageable.
+
+### Changed
 - **Interactive Split-Pane Canvas**: Extracted the rich artifact rendering system into a dedicated, slide-out split-pane layout to ensure a clean chat feed.
 - **Sandpack Integration**: Replaced standard code blocks with `@codesandbox/sandpack-react` to deliver a true "IDE feel", featuring robust syntax highlighting, line numbers, and intelligent wrapping.
-- **Transient Local State**: The canvas code views are rendered exclusively in local browser session state. This ensures massive code artifacts do not bloat the backend database history while remaining fully visible and manageable.
 - **Clean Read-Only Mode**: Forced the Sandpack code editor into a strict read-only mode to prevent accidental keystrokes, keeping the UI strictly focused as a clean viewer with one-click Copy and Close controls.
 
 ## [1.2.0] - 2026-06-21
