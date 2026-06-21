@@ -186,3 +186,69 @@ export async function runChatAgent(message: string, history: any[] = [], attachm
     return null;
   }
 }
+
+export type ChatEvent = 
+  | { type: 'status'; message: string }
+  | { type: 'text'; text: string }
+  | { type: 'done'; sources: ChatSource[]; reply: string };
+
+export async function* runChatAgentStream(message: string, history: any[] = [], attachments: any[] = []): AsyncGenerator<ChatEvent, void, unknown> {
+  if (!process.env.CLAUDE_API) return;
+
+  const anthropic = new Anthropic({ 
+    apiKey: process.env.CLAUDE_API,
+    defaultHeaders: { 'anthropic-beta': 'pdfs-2024-09-25' }
+  });
+  
+  const messages = await toAnthropicMessages(history, message, attachments);
+  const tools: any[] = [
+    { type: 'web_search_20260209', name: 'web_search', max_uses: 5 },
+    { type: 'web_fetch_20260209', name: 'web_fetch', max_uses: 5 },
+  ];
+
+  logApiHit('Claude API (chatAgentStream)');
+
+  yield { type: 'status', message: 'Analyzing request...' };
+
+  let continuations = 0;
+  let fullReply = "";
+  const allContent: Anthropic.ContentBlock[] = [];
+
+  while (continuations < 5) {
+    const stream = anthropic.messages.stream({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 4096,
+      system: SYSTEM_PROMPT,
+      tools,
+      messages
+    });
+
+    for await (const event of stream) {
+      if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+        fullReply += event.delta.text;
+        yield { type: 'text', text: event.delta.text };
+      } else if (event.type === 'content_block_start' && event.content_block.type === 'tool_use') {
+        const name = event.content_block.name;
+        if (name === 'web_search') {
+          yield { type: 'status', message: 'Searching the web...' };
+        } else if (name === 'web_fetch') {
+          yield { type: 'status', message: 'Reading sources...' };
+        } else {
+          yield { type: 'status', message: 'Using tools...' };
+        }
+      }
+    }
+
+    const messageResponse = await stream.finalMessage();
+    allContent.push(...messageResponse.content);
+    
+    if (messageResponse.stop_reason === 'pause_turn') {
+      messages.push({ role: 'assistant', content: messageResponse.content });
+      continuations++;
+    } else {
+      break;
+    }
+  }
+
+  yield { type: 'done', sources: extractSources(allContent), reply: fullReply };
+}

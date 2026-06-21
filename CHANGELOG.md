@@ -2,6 +2,17 @@
 
 All notable changes to the Motif UGC Video Generator will be documented in this file.
 
+## [1.4.0] - 2026-06-21
+
+### Added
+- **Real-Time NDJSON Streaming Architecture**: Radically upgraded the `/api/chat` route and Anthropic Agent to stream LLM tokens natively using `application/x-ndjson`. The UI now updates character-by-character for a snappy, ChatGPT-like conversational experience.
+- **Multi-Step Reasoning Indicators**: When the Agent executes native server-side tools (like browsing the web or reading sources), the chat bubble now renders a beautiful pulsating "Searching the web..." status right inside the message until the tool finishes.
+- **Non-Destructive Chat Editing**: Overhauled the prompt editing system for regular text chats. Editing a chat message no longer overrides the global `jobId`. Instead, it cleanly branches your conversation, truncates the local history to that specific point, and fires off a fresh stream.
+
+### Fixed
+- **Stream Buffering Issues**: Fixed a critical Next.js App Router bug where Vercel/Nginx would aggressively buffer `ReadableStream` responses for up to 20 seconds. Added explicit `X-Accel-Buffering: no` and `no-transform` Cache-Control headers to forcefully disable HTTP buffering.
+- **Claude Beta Header Rejection**: Fixed an Anthropic `invalid_request_error` (`betas: Extra inputs are not permitted`) inside `classifyMessage.ts` by correctly binding the `pdfs-2024-09-25` flag to the SDK `defaultHeaders` rather than the JSON body.
+
 ## [1.3.0] - 2026-06-21
 
 ### Added

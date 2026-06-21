@@ -3,7 +3,7 @@ import { after } from 'next/server';
 import { createJob, updateJobStatus } from '@/lib/jobs';
 import { runPipelineWorker } from '@/lib/pipeline/worker';
 import { classifyMessage } from '@/lib/pipeline/classifyMessage';
-import { runChatAgent } from '@/lib/pipeline/chatAgent';
+import { runChatAgentStream } from '@/lib/pipeline/chatAgent';
 
 export const maxDuration = 60; // Allow Vercel lambda to run up to 60s for background tasks
 
@@ -23,27 +23,54 @@ export async function POST(req: Request) {
     let activeJobId = chatId;
 
     if (classification.type === 'chat') {
-      // Web-capable agent (Claude server tools); falls back to the classifier reply when
-      // CLAUDE_API is unset or Claude errors.
-      const agent = await runChatAgent(message, history, attachments);
-      const reply = agent?.reply || classification.reply || "Hello! I can help you generate UGC videos. Just provide a product URL.";
-      const sources = agent?.sources || [];
-      const newHistory = [...history, { role: 'user', content: message, attachments: attachments.length > 0 ? attachments : undefined }, { role: 'assistant', type: 'chat', content: reply, sources }];
+      const stream = new ReadableStream({
+        async start(controller) {
+          try {
+            if (!activeJobId) {
+              const tempHistory = [...history, { role: 'user', content: message, attachments: attachments.length > 0 ? attachments : undefined }];
+              activeJobId = await createJob(message, userId, token, { chat_history: tempHistory });
+            }
+            
+            controller.enqueue(new TextEncoder().encode(JSON.stringify({ type: 'init', chatId: activeJobId }) + '\n'));
 
-      if (activeJobId) {
-        await updateJobStatus(activeJobId, {
-          product_json: { chat_history: newHistory },
-          status: 'done'
-        }, token);
-      } else {
-        activeJobId = await createJob(message, userId, token, { chat_history: newHistory });
-      }
+            let finalReply = "";
+            let finalSources: any[] = [];
+            
+            const generator = runChatAgentStream(message, history, attachments);
+            for await (const event of generator) {
+              controller.enqueue(new TextEncoder().encode(JSON.stringify(event) + '\n'));
+              if (event.type === 'done') {
+                finalReply = event.reply;
+                finalSources = event.sources;
+              }
+            }
 
-      return NextResponse.json({
-        isChat: true,
-        reply: reply,
-        sources: sources,
-        chatId: activeJobId
+            if (!finalReply) {
+              finalReply = classification.reply || "Hello! I can help you generate UGC videos. Just provide a product URL.";
+              controller.enqueue(new TextEncoder().encode(JSON.stringify({ type: 'done', reply: finalReply, sources: [] }) + '\n'));
+            }
+
+            const newHistory = [...history, { role: 'user', content: message, attachments: attachments.length > 0 ? attachments : undefined }, { role: 'assistant', type: 'chat', content: finalReply, sources: finalSources }];
+            await updateJobStatus(activeJobId, {
+              product_json: { chat_history: newHistory },
+              status: 'done'
+            }, token);
+            
+            controller.close();
+          } catch (e) {
+            console.error('Chat stream error:', e);
+            controller.error(e);
+          }
+        }
+      });
+
+      return new Response(stream, {
+        headers: {
+          'Content-Type': 'application/x-ndjson',
+          'Cache-Control': 'no-cache, no-transform',
+          'Connection': 'keep-alive',
+          'X-Accel-Buffering': 'no',
+        },
       });
     }
 

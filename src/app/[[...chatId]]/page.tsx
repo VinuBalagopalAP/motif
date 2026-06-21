@@ -469,7 +469,7 @@ export default function ChatApp() {
     return () => clearInterval(interval);
   }, [messages, session]);
 
-  const runGeneration = async (prompt: string) => {
+  const runGeneration = async (prompt: string, historyOverride?: Message[]) => {
     if ((!prompt.trim() && attachments.length === 0) || !user || !session || loading || uploadingFiles) return;
 
     const currentAttachments = [...attachments];
@@ -478,7 +478,7 @@ export default function ChatApp() {
     const userMessage: Message = { id: Date.now().toString(), role: "user", content: prompt, attachments: currentAttachments.length > 0 ? currentAttachments : undefined };
     const assistantMessage: Message = { id: (Date.now() + 1).toString(), role: "assistant", content: "" };
 
-    setMessages(prev => [...prev, userMessage, assistantMessage]);
+    setMessages(prev => [...(historyOverride || prev), userMessage, assistantMessage]);
     setInput("");
     setLoading(true);
 
@@ -494,7 +494,7 @@ export default function ChatApp() {
           userId: user.id,
           chatId: activeChatId,
           attachments: currentAttachments.length > 0 ? currentAttachments : undefined,
-          history: messages.map(m => ({
+          history: (historyOverride || messages).map(m => ({
             role: m.role,
             type: m.type || (m.role === 'assistant' ? (m.job?.product_json?.chat_reply ? 'chat' : 'video') : undefined),
             content: m.role === 'assistant' ? (m.job?.product_json?.chat_reply || "Generated a video.") : m.content,
@@ -502,21 +502,78 @@ export default function ChatApp() {
           }))
         })
       });
-      const data = await res.json();
+      const contentType = res.headers.get("content-type");
+      if (contentType && contentType.includes("application/x-ndjson")) {
+        const reader = res.body?.getReader();
+        if (!reader) return;
+        const decoder = new TextDecoder();
+        let buffer = "";
+        
+        let currentReply = "";
+        let currentSources: any[] = [];
+        let currentStatus = "";
 
-      if (data.isChat) {
-        if (!activeChatId && data.chatId) {
-          setActiveChatId(data.chatId);
-          window.history.replaceState(null, '', `/c/${data.chatId}`);
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || "";
+          
+          for (const line of lines) {
+            if (!line.trim()) continue;
+            try {
+              const event = JSON.parse(line);
+              if (event.type === 'init') {
+                if (!activeChatId && event.chatId) {
+                  setActiveChatId(event.chatId);
+                  window.history.replaceState(null, '', `/c/${event.chatId}`);
+                }
+                setMessages(prev => prev.map(m =>
+                  m.id === assistantMessage.id ? {
+                    ...m,
+                    type: 'chat',
+                    job: { status: 'Thinking...', product_json: { chat_reply: '', sources: [] } } as any
+                  } : m
+                ));
+              } else if (event.type === 'status') {
+                currentStatus = event.message;
+                setMessages(prev => prev.map(m =>
+                  m.id === assistantMessage.id ? {
+                    ...m,
+                    type: 'chat',
+                    job: { status: currentStatus, product_json: { chat_reply: currentReply, sources: currentSources } } as any
+                  } : m
+                ));
+              } else if (event.type === 'text') {
+                currentReply += event.text;
+                setMessages(prev => prev.map(m =>
+                  m.id === assistantMessage.id ? {
+                    ...m,
+                    type: 'chat',
+                    job: { status: 'Streaming text...', product_json: { chat_reply: currentReply, sources: currentSources } } as any
+                  } : m
+                ));
+              } else if (event.type === 'done') {
+                currentReply = event.reply;
+                currentSources = event.sources;
+                setMessages(prev => prev.map(m =>
+                  m.id === assistantMessage.id ? {
+                    ...m,
+                    type: 'chat',
+                    job: { status: 'done', product_json: { chat_reply: currentReply, sources: currentSources } } as any
+                  } : m
+                ));
+              }
+            } catch (err) {
+              console.error("Failed to parse stream event", line, err);
+            }
+          }
         }
-        setMessages(prev => prev.map(m =>
-          m.id === assistantMessage.id ? {
-            ...m,
-            job: { status: 'done', product_json: { chat_reply: data.reply, sources: data.sources } } as any
-          } : m
-        ));
         fetchHistory();
       } else {
+        const data = await res.json();
         if (!activeChatId && data.chatId) {
           setActiveChatId(data.chatId);
           window.history.replaceState(null, '', `/c/${data.chatId}`);
@@ -560,7 +617,7 @@ export default function ChatApp() {
     }
   };
 
-  const handleEditSubmit = async (jobId: string, oldContent: string) => {
+  const handleEditSubmit = async (msgId: string, oldContent: string) => {
     if (editInput.trim() === oldContent || !editInput.trim()) {
       setEditingMsgId(null);
       return;
@@ -568,6 +625,16 @@ export default function ChatApp() {
     const newMessage = editInput;
     setEditingMsgId(null);
     if (!session) return;
+    
+    if (msgId.startsWith('hist-') || !msgId.startsWith('user-')) {
+      const index = messages.findIndex(m => m.id === msgId);
+      if (index === -1) return;
+      const truncatedHistory = messages.slice(0, index);
+      runGeneration(newMessage, truncatedHistory);
+      return;
+    }
+
+    const jobId = msgId.replace('user-', '');
     try {
       const res = await fetch("/api/chat/edit", {
         method: "POST",
@@ -866,7 +933,7 @@ export default function ChatApp() {
                                 />
                                 <div className="flex justify-end gap-2">
                                   <button onClick={() => setEditingMsgId(null)} className="px-3 py-1.5 text-xs font-semibold text-gray-500 hover:text-gray-700 bg-gray-100 rounded-lg">Cancel</button>
-                                  <button onClick={() => handleEditSubmit(m.id.replace('user-', ''), m.content)} className="px-3 py-1.5 text-xs font-semibold text-white bg-[#08c225] hover:bg-[#00b33c] rounded-lg">Save & Generate</button>
+                                  <button onClick={() => handleEditSubmit(m.id, m.content)} className="px-3 py-1.5 text-xs font-semibold text-white bg-[#08c225] hover:bg-[#00b33c] rounded-lg">Save & Generate</button>
                                 </div>
                               </div>
                             ) : (
@@ -964,10 +1031,10 @@ export default function ChatApp() {
                                   </button>
                                 </div>
                               </div>
-                            ) : m.job?.status === 'done' && activeType === 'chat' && activeContent ? (
+                            ) : activeType === 'chat' && (activeContent || m.job?.status !== 'done') ? (
                               <div className="flex flex-col gap-1 w-fit max-w-[80%] group/reply">
-                                <div className="bg-white text-[#282828] rounded-[24px] px-6 py-4 font-medium text-sm border border-gray-100 shadow-sm">
-                                  {parseMessageParts(activeContent).map((part, idx) => (
+                                <div className="bg-white text-[#282828] rounded-[24px] px-6 py-4 font-medium text-sm border border-gray-100 shadow-sm flex flex-col">
+                                  {activeContent ? parseMessageParts(activeContent).map((part, idx) => (
                                     part.type === 'text' && part.content?.trim() ? (
                                       <ReactMarkdown
                                         key={idx}
@@ -1009,7 +1076,7 @@ export default function ChatApp() {
                                         </div>
                                       </div>
                                     ) : null
-                                  ))}
+                                  )) : null}
                                   {Array.isArray(activeSources) && activeSources.length > 0 && (
                                     <div className="mt-3 pt-3 border-t border-gray-100">
                                       <div className="text-[11px] font-semibold uppercase tracking-wide text-[#9a9a9a] mb-1.5">Sources</div>
@@ -1023,14 +1090,21 @@ export default function ChatApp() {
                                             className="text-[13px] text-[#08c225] hover:underline truncate"
                                             title={s.url}
                                           >
-                                            {i + 1}. {s.title || s.url}
+                                        {i + 1}. {s.title || s.url}
                                           </a>
                                         ))}
                                       </div>
                                     </div>
                                   )}
+                                  {m.job?.status !== 'done' && (
+                                    <div className={`flex items-center gap-3 text-[#757575] font-semibold text-sm ${activeContent ? 'mt-4 pt-4 border-t border-gray-100' : ''}`}>
+                                      <div className="w-4 h-4 border-2 border-gray-200 border-t-[#08c225] rounded-full animate-spin"></div>
+                                      <span className="animate-pulse">{m.job?.status || 'Thinking...'}</span>
+                                    </div>
+                                  )}
                                 </div>
-                                <div className="flex items-center gap-1 mt-4 text-gray-400 relative">
+                                {m.job?.status === 'done' && (
+                                  <div className="flex items-center gap-1 mt-4 text-gray-400 relative">
                                   {m.variants && m.variants.length > 1 && (
                                     <div className="flex items-center gap-2 mr-3 text-xs font-semibold text-gray-400">
                                       <button
@@ -1100,7 +1174,8 @@ export default function ChatApp() {
                                       </>
                                     )}
                                   </div>
-                                </div>
+                                  </div>
+                                )}
                               </div>
                             ) : m.job?.status === 'error' ? (
                               <div className="bg-red-50 text-red-600 rounded-[16px] p-4 text-sm flex items-center gap-3 font-medium border border-red-100">
@@ -1112,7 +1187,7 @@ export default function ChatApp() {
                             ) : m.job?.status === 'started' || m.job?.status === 'queued' || !m.job ? (
                               <div className="bg-white text-[#757575] rounded-[24px] px-6 py-4 font-medium text-sm border border-gray-100 shadow-sm w-fit max-w-[80%] flex items-center gap-2">
                                 <div className="w-4 h-4 border-2 border-gray-200 border-t-[#08c225] rounded-full animate-spin"></div>
-                                Thinking...
+                                {m.job?.status || 'Thinking...'}
                               </div>
                             ) : (
                               <div className="relative overflow-hidden bg-[#f9f9fa] border border-gray-100 rounded-[24px] w-[320px] h-[569px] flex flex-col items-center justify-center mt-2">

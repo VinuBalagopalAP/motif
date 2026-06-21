@@ -37,7 +37,10 @@ Respond strictly with a JSON object in this format (no markdown code blocks):
   // Try Claude first if API key is available
   if (process.env.CLAUDE_API) {
     try {
-      const anthropic = new Anthropic({ apiKey: process.env.CLAUDE_API });
+      const anthropic = new Anthropic({ 
+        apiKey: process.env.CLAUDE_API,
+        defaultHeaders: { 'anthropic-beta': 'pdfs-2024-09-25' }
+      });
       logApiHit('Claude API (classifyMessage)', 1);
 
       const contentBlocks: Anthropic.ContentBlockParam[] = [];
@@ -64,9 +67,7 @@ Respond strictly with a JSON object in this format (no markdown code blocks):
       const msg = await anthropic.messages.create({
         model: "claude-sonnet-4-6",
         max_tokens: 1024,
-        messages: [{ role: "user", content: contentBlocks }],
-        // @ts-ignore
-        betas: ["pdfs-2024-09-25"]
+        messages: [{ role: "user", content: contentBlocks }]
       });
       const text = (msg.content[0] as any).text.replace(/\`\`\`json/g, "").replace(/\`\`\`/g, "").trim();
       return JSON.parse(text);
