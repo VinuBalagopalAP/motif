@@ -29,7 +29,8 @@ Integrated with a PostgreSQL database via **Supabase**.
 ### 💬 Threaded Chat Sessions
 The app features a fully threaded, ChatGPT-style chat interface that seamlessly blends pure text conversation with complex video generation tasks.
 - **Intent Classification**: Uses Gemini to dynamically determine if a message is casual chat or a video request on every single turn.
-- **Deep Multimodality**: Users can upload images and PDFs to give the AI visual and document context natively processed by Claude 3.5 Sonnet and Gemini 2.5 Flash.
+- **Deep Multimodality**: Users can upload images, PDFs, and spreadsheets (`.csv`, `.xlsx`) to give the AI visual and document context natively processed by Claude 3.5 Sonnet and Gemini 2.5 Flash.
+- **Interactive Data Analysis**: Uploading a spreadsheet allows Claude to natively parse the data, analyze trends, and generate fully interactive, hoverable React `recharts` directly inside the Artifact Canvas!
 - **Persistent Normal Chats**: All normal conversations are permanently saved to your Library as active threads.
 - **In-Chat Video Generation**: Requesting a video inside an ongoing chat drops the generated Remotion video player directly inline within the conversation feed, without breaking the session.
 - **Non-Destructive Editing**: Don't like how you phrased a prompt? Hit edit. The app will seamlessly branch your chat history (just like ChatGPT) and fire off a fresh generation without destroying the overall thread.

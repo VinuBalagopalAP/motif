@@ -2,6 +2,19 @@
 
 All notable changes to the Motif UGC Video Generator will be documented in this file.
 
+## [1.5.0] - 2026-06-21
+
+### Added
+- **Interactive Data Analysis**: Motif is no longer just a video generator—it's a powerful data analysis engine. The agent can now natively process spreadsheets and generate dynamic, interactive charts.
+- **Spreadsheet Support**: The file uploader now fully supports `.csv` and `.xlsx` files. The backend uses the `xlsx` library to natively parse spreadsheets into clean markdown tables for Claude to analyze.
+- **Recharts Integration**: When analyzing data, Claude is explicitly instructed to build beautiful React visualizations using the `recharts` library. 
+- **Sandpack UX Overhaul**: Completely rebuilt the Artifact Canvas. It now features a sleek **[Preview] | [Code]** tab bar, allowing users to seamlessly toggle between the interactive chart and the raw React code.
+- **Flawless DOM Stability**: Inactive Canvas tabs are now hidden via CSS (`display: none`) rather than unmounted, preventing the Sandpack bundler from crashing or losing state when switching views.
+- **CodeMirror Scroll Fixes**: Bypassed Sandpack's notoriously buggy Flexbox height inheritance by injecting explicit `calc(100vh - 57px)` bounds. The Code editor now perfectly wraps long lines and scrolls vertically without clipping.
+- **Beautiful Markdown Tables**: Integrated the `remark-gfm` plugin into `<ReactMarkdown>` to cleanly render markdown tables with borders and padding instead of broken raw text.
+- **Sleek Streaming UI**: Overhauled the `<artifact>` tag parser. When the AI is generating code, it now renders a sleek, pulsing "Generating [Title]... [Writing Code]" accordion block instead of dumping raw code vomit into the chat stream.
+- **Proportional Panel Layout**: Adjusted the Chat feed to use dynamic flex percentages (`md:w-[45%] max-w-[600px]`). The Sidebar, Chat, and Canvas now perfectly distribute across wide monitors without cramping.
+
 ## [1.4.0] - 2026-06-21
 
 ### Added
