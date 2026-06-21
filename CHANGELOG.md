@@ -14,6 +14,7 @@ All notable changes to the Motif UGC Video Generator will be documented in this 
 - **Typing Lockout Bug**: Fixed a UX oversight where the chat `textarea` would become completely disabled while the AI was generating a response in the background. Users can now seamlessly queue up their next thought or copy text from the input box while a generation is active.
 - **Stream Buffering Issues**: Fixed a critical Next.js App Router bug where Vercel/Nginx would aggressively buffer `ReadableStream` responses for up to 20 seconds. Added explicit `X-Accel-Buffering: no` and `no-transform` Cache-Control headers to forcefully disable HTTP buffering.
 - **Claude Beta Header Rejection**: Fixed an Anthropic `invalid_request_error` (`betas: Extra inputs are not permitted`) inside `classifyMessage.ts` by correctly binding the `pdfs-2024-09-25` flag to the SDK `defaultHeaders` rather than the JSON body.
+- **Build Error Fix**: Fixed a TypeScript build error by adding the missing `sources` property to the `Message` type in the chat interface, enabling successful Vercel deployments.
 
 ## [1.3.0] - 2026-06-21
 

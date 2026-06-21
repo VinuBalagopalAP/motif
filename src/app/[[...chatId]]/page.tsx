@@ -70,6 +70,7 @@ type Message = {
   userFeedback?: 'up' | 'down';
   variants?: any[];
   activeVariantIndex?: number;
+  sources?: any[];
 };
 
 export default function ChatApp() {
