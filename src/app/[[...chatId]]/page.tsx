@@ -12,6 +12,7 @@ import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { ArtifactCanvas } from "@/components/ArtifactCanvas";
+import packageJson from '../../../package.json';
 
 interface ParsedArtifact {
   id: string;
@@ -1399,7 +1400,7 @@ export default function ChatApp() {
               </div>
               <div className="text-center mt-3 mb-1">
                 <span className="text-[#757575] text-[11px] font-medium tracking-wide">
-                  Motif Beta v1.2.0
+                  Motif Beta v{packageJson.version}
                 </span>
               </div>
             </div>
