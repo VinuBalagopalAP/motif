@@ -36,7 +36,7 @@ export async function POST(req: Request) {
             let finalReply = "";
             let finalSources: any[] = [];
             
-            const generator = runChatAgentStream(message, history, attachments);
+            const generator = runChatAgentStream(message, history, attachments, userId, token, activeJobId);
             for await (const event of generator) {
               controller.enqueue(new TextEncoder().encode(JSON.stringify(event) + '\n'));
               if (event.type === 'done') {

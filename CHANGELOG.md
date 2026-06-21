@@ -2,6 +2,13 @@
 
 All notable changes to the Motif UGC Video Generator will be documented in this file.
 
+## [1.6.0] - 2026-06-21
+
+### Added
+- **Persistent Memory (Fact Extraction)**: Motif now acts like ChatGPT's Memory system! The AI can proactively extract personal preferences, brand guidelines, and rules that the user shares and save them persistently.
+- **Dynamic Context Injection**: Whenever a new chat is started, the user's isolated facts are fetched from the new `user_memories` table and seamlessly injected into the `SYSTEM_PROMPT`. This guarantees the AI respects the user's brand tone and color palettes across *all* future conversations.
+- **Claude Tool-Use Pipeline**: Upgraded the NDJSON streaming backend to successfully intercept, pause, and execute the custom `save_memory` server tool mid-stream, storing facts directly into Supabase via RLS policies before resuming the chat.
+
 ## [1.5.0] - 2026-06-21
 
 ### Added

@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { logApiHit } from './logger';
 import * as XLSX from 'xlsx';
+import { getUserMemories, saveUserMemory } from '../memories';
 
 export interface ChatSource {
   url: string;
@@ -232,7 +233,14 @@ export type ChatEvent =
   | { type: 'text'; text: string }
   | { type: 'done'; sources: ChatSource[]; reply: string };
 
-export async function* runChatAgentStream(message: string, history: any[] = [], attachments: any[] = []): AsyncGenerator<ChatEvent, void, unknown> {
+export async function* runChatAgentStream(
+  message: string, 
+  history: any[] = [], 
+  attachments: any[] = [],
+  userId?: string,
+  token?: string,
+  activeJobId?: string
+): AsyncGenerator<ChatEvent, void, unknown> {
   if (!process.env.CLAUDE_API) return;
 
   const anthropic = new Anthropic({ 
@@ -244,11 +252,30 @@ export async function* runChatAgentStream(message: string, history: any[] = [], 
   const tools: any[] = [
     { type: 'web_search_20260209', name: 'web_search', max_uses: 5 },
     { type: 'web_fetch_20260209', name: 'web_fetch', max_uses: 5 },
+    {
+      name: 'save_memory',
+      description: 'Save an important fact, preference, brand guideline, or user detail to the persistent memory database. Use this proactively when the user shares something that should be remembered for all future conversations.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          fact: { type: 'string', description: 'A clear, standalone sentence stating the fact to remember.' }
+        },
+        required: ['fact']
+      }
+    }
   ];
 
   logApiHit('Claude API (chatAgentStream)');
 
   yield { type: 'status', message: 'Analyzing request...' };
+
+  let dynamicSystemPrompt = SYSTEM_PROMPT;
+  if (userId && token) {
+    const memories = await getUserMemories(userId, token);
+    if (memories.length > 0) {
+      dynamicSystemPrompt = `You are Motif AI. Here are some persistent facts you know about this user:\n${memories.map((m: string) => `- ${m}`).join('\n')}\n\n${SYSTEM_PROMPT}`;
+    }
+  }
 
   let continuations = 0;
   let fullReply = "";
@@ -258,7 +285,7 @@ export async function* runChatAgentStream(message: string, history: any[] = [], 
     const stream = anthropic.messages.stream({
       model: 'claude-sonnet-4-6',
       max_tokens: 4096,
-      system: SYSTEM_PROMPT,
+      system: dynamicSystemPrompt,
       tools,
       messages
     });
@@ -285,6 +312,34 @@ export async function* runChatAgentStream(message: string, history: any[] = [], 
     if (messageResponse.stop_reason === 'pause_turn') {
       messages.push({ role: 'assistant', content: messageResponse.content });
       continuations++;
+    } else if (messageResponse.stop_reason === 'tool_use') {
+      messages.push({ role: 'assistant', content: messageResponse.content });
+      
+      const toolUses = messageResponse.content.filter(b => b.type === 'tool_use');
+      const toolResults: any[] = [];
+      
+      for (const block of toolUses) {
+        if (block.name === 'save_memory' && userId && token) {
+           const fact = (block.input as any).fact;
+           yield { type: 'status', message: 'Saving memory...' };
+           try {
+             await saveUserMemory(userId, fact, activeJobId || null, token);
+             toolResults.push({ type: 'tool_result', tool_use_id: block.id, content: 'Memory saved successfully.' });
+           } catch (e) {
+             toolResults.push({ type: 'tool_result', tool_use_id: block.id, content: 'Failed to save memory.', is_error: true });
+           }
+        } else {
+           // Handle unknown tools gracefully by erroring them out
+           toolResults.push({ type: 'tool_result', tool_use_id: block.id, content: 'Unknown or unhandled tool.', is_error: true });
+        }
+      }
+      
+      if (toolResults.length > 0) {
+        messages.push({ role: 'user', content: toolResults });
+        continuations++;
+      } else {
+        break;
+      }
     } else {
       break;
     }
