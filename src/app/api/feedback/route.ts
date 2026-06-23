@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { jobId, messageIndex, variantIndex, isPositive } = await req.json();
+    const { msgId, jobId, messageIndex, variantIndex, isPositive } = await req.json();
 
     if (!jobId || messageIndex === undefined || variantIndex === undefined || isPositive === undefined) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -38,6 +38,10 @@ export async function POST(req: NextRequest) {
       }, { onConflict: 'job_id,message_index,variant_index,user_id' })
       .select('id')
       .single();
+
+    if (msgId) {
+      await client.from('messages').update({ user_feedback: isPositive ? 'up' : 'down' }).eq('id', msgId);
+    }
 
     if (error) {
       console.error('Error saving feedback:', error);

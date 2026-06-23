@@ -1,4 +1,4 @@
-import { getJob, updateJobStatus } from '../jobs';
+import { updateJobStatus, getJob, insertMessage, updateMessage } from '../jobs';
 import { extractProduct } from './extractProduct';
 import { scrapeSite } from './scrapeSite';
 import { generateConcept } from './generateConcepts';
@@ -106,32 +106,34 @@ export async function runPipelineWorker(
         console.dir(renderSpec, { depth: null, colors: true });
         console.log(`\x1b[36m--------------------------------------------------\x1b[0m\n`);
 
-        // WORKAROUND: Fetch-Modify-Write to fix 60-second DB race condition
-        const latestJob = await getJob(jobId, token);
-        const latestHistory = (latestJob?.product_json as any)?.chat_history || history;
-        const finalHistory = structuredClone(latestHistory);
-
-        if (assistantMessage) {
-          assistantMessage.variants.push({ type: 'video', render_spec: renderSpec });
-          finalHistory.push(assistantMessage);
+        if (assistantMessage && assistantMessage.id) {
+          // If we have an existing assistant message (e.g. from /api/chat or regenerate), update its variants
+          const variants = assistantMessage.variants || [];
+          variants.push({ type: 'video', render_spec: renderSpec });
+          await updateMessage(assistantMessage.id, { type: 'video', variants }, token);
         } else if (partialTarget === 'background') {
-          // Background switches: update existing last video message in-place, don't create a new variant
-          const lastAssistantIdx = finalHistory.findLastIndex((m: any) => m.role === 'assistant' && m.type === 'video');
-          if (lastAssistantIdx !== -1) {
-            finalHistory[lastAssistantIdx] = { ...finalHistory[lastAssistantIdx], render_spec: renderSpec };
-          } else {
-            finalHistory.push({ role: 'assistant', type: 'video', render_spec: renderSpec });
+          // Background switches: update existing last video message in-place
+          if (assistantMessage && assistantMessage.id) {
+            const variants = assistantMessage.variants || [];
+            if (variants.length > 0) {
+              variants[variants.length - 1].render_spec = renderSpec;
+            } else {
+              variants.push({ type: 'video', render_spec: renderSpec });
+            }
+            await updateMessage(assistantMessage.id, { type: 'video', variants }, token);
           }
         } else {
-          finalHistory.push({
-            role: 'assistant',
-            type: 'video',
-            render_spec: renderSpec
-          });
+           // Insert a new assistant message if none exists
+           await insertMessage({
+             job_id: jobId,
+             role: 'assistant',
+             type: 'video',
+             variants: [{ type: 'video', render_spec: renderSpec }]
+           }, token);
         }
 
         await updateJobStatus(jobId, {
-          product_json: { chat_history: finalHistory, name: concept.productName, url: foundUrl },
+          product_json: { name: concept.productName, url: foundUrl },
           render_spec_json: renderSpec,
           status: 'done'
         }, token);

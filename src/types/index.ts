@@ -19,8 +19,20 @@ export interface ChatHistoryMessage {
 export interface ProductJson {
   chat_reply?: string;
   sources?: Source[];
-  chat_history?: ChatHistoryMessage[];
   [key: string]: unknown; // Allow flexibility for other fields while removing 'any'
+}
+
+export interface DbMessage {
+  id: string;
+  job_id: string;
+  user_id?: string;
+  role: 'user' | 'assistant';
+  content?: string;
+  type?: 'chat' | 'video';
+  variants?: any[];
+  attachments?: { url: string; type: string; name: string }[];
+  user_feedback?: 'up' | 'down';
+  created_at: string;
 }
 
 export interface ScrapedDataJson {
@@ -101,6 +113,7 @@ export interface Job {
   error?: string;
   output_url?: string;
   created_at: string;
+  messages?: DbMessage[];
 }
 
 export interface Message {

@@ -16,7 +16,7 @@ export async function getJob(id: string, token?: string): Promise<Job | null> {
   const client = getScopedClient(token);
   const { data, error } = await client
     .from('video_jobs')
-    .select('*')
+    .select('*, messages(*)')
     .eq('id', id)
     .single();
 
@@ -51,3 +51,29 @@ export async function updateJobStatus(id: string, updates: Partial<Job>, token?:
   }
 }
 
+export async function insertMessage(msg: Partial<import('@/types').DbMessage>, token?: string): Promise<string | null> {
+  const client = getScopedClient(token);
+  const { data, error } = await client
+    .from('messages')
+    .insert([msg])
+    .select('id')
+    .single();
+
+  if (error || !data) {
+    console.error("Failed to insert message:", error);
+    return null;
+  }
+  return data.id;
+}
+
+export async function updateMessage(id: string, updates: Partial<import('@/types').DbMessage>, token?: string): Promise<void> {
+  const client = getScopedClient(token);
+  const { error } = await client
+    .from('messages')
+    .update(updates)
+    .eq('id', id);
+
+  if (error) {
+    console.error("Failed to update message:", error);
+  }
+}

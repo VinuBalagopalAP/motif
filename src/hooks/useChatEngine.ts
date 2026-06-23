@@ -156,7 +156,7 @@ export function useChatEngine() {
     if (!user) return;
     const { data, error } = await supabase
       .from('video_jobs')
-      .select('*')
+      .select('*, messages(*)')
       .order('created_at', { ascending: false });
 
     if (data) {
@@ -212,7 +212,7 @@ export function useChatEngine() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`
         },
-        body: JSON.stringify({ jobId, messageIndex: index, variantIndex, isPositive })
+        body: JSON.stringify({ msgId, jobId, messageIndex: index, variantIndex, isPositive })
       });
       const data = await res.json();
       console.log("Feedback API response:", data);
@@ -385,6 +385,42 @@ export function useChatEngine() {
     }
   };
 
+  const mapMessages = (job: any): Message[] => {
+    if (job.messages && job.messages.length > 0) {
+      const sortedMessages = [...job.messages].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+      return sortedMessages.map((msg: any) => {
+        const variants = msg.variants?.length > 0 ? msg.variants : [{
+          type: msg.type,
+          content: msg.content,
+          render_spec: msg.render_spec,
+          sources: msg.sources
+        }];
+        const activeIndex = variants.length - 1;
+        const activeVariant = variants[activeIndex];
+
+        return {
+          id: msg.id,
+          role: msg.role as 'user' | 'assistant',
+          content: msg.content || '',
+          type: activeVariant?.type || msg.type || 'chat',
+          attachments: msg.attachments,
+          userFeedback: msg.user_feedback || msg.userFeedback,
+          variants: msg.variants?.length > 0 ? msg.variants : undefined,
+          activeVariantIndex: msg.variants?.length > 0 ? activeIndex : undefined,
+          jobId: job.id,
+          job: (activeVariant?.type === 'video'
+            ? { ...job, status: 'done', render_spec_json: activeVariant.render_spec }
+            : (msg.role === 'assistant' ? { status: 'done', product_json: { chat_reply: activeVariant?.content || msg.content, sources: activeVariant?.sources || msg.sources } } : undefined)) as Job | undefined
+        };
+      });
+    } else {
+      return [
+        { id: `user-${job.id}`, role: 'user', content: job.message },
+        { id: `asst-${job.id}`, role: 'assistant', content: '', jobId: job.id, job }
+      ] as Message[];
+    }
+  };
+
   // Initial load from URL
   useEffect(() => {
     if (user && historyJobs.length > 0 && !initialChatIdLoaded.current) {
@@ -394,39 +430,7 @@ export function useChatEngine() {
         const job = historyJobs.find(j => j.id === jobId);
         if (job) {
           setActiveChatId(job.id);
-          if (job.product_json?.chat_history) {
-            const historyMessages = job.product_json.chat_history.map((msg: any, i: number) => {
-              const variants = msg.variants?.length > 0 ? msg.variants : [{
-                type: msg.type,
-                content: msg.content,
-                render_spec: msg.render_spec,
-                sources: msg.sources
-              }];
-              const activeIndex = variants.length - 1;
-              const activeVariant = variants[activeIndex];
-
-              return {
-                id: `hist-${job.id}-${i}`,
-                role: msg.role,
-                content: msg.content || '',
-                type: activeVariant?.type || msg.type || 'chat',
-                attachments: msg.attachments,
-                userFeedback: msg.userFeedback,
-                variants: msg.variants ? msg.variants : undefined,
-                activeVariantIndex: msg.variants ? activeIndex : undefined,
-                jobId: job.id,
-                job: (activeVariant?.type === 'video'
-                  ? { ...job, status: 'done', render_spec_json: activeVariant.render_spec }
-                  : (msg.role === 'assistant' ? { status: 'done', product_json: { chat_reply: activeVariant?.content || msg.content, sources: activeVariant?.sources || msg.sources } } : undefined)) as Job | undefined
-              };
-            });
-            setMessages(historyMessages);
-          } else {
-            setMessages([
-              { id: `user-${job.id}`, role: 'user', content: job.message },
-              { id: `asst-${job.id}`, role: 'assistant', content: '', jobId: job.id, job }
-            ]);
-          }
+          setMessages(mapMessages(job));
           initialChatIdLoaded.current = true;
         } else {
           window.history.replaceState(null, '', '/');
@@ -750,39 +754,7 @@ export function useChatEngine() {
   const loadJob = (job: Job) => {
     window.history.pushState(null, '', `/c/${job.id}`);
     setActiveChatId(job.id);
-    if (job.product_json?.chat_history) {
-      const historyMessages = job.product_json.chat_history.map((msg: any, i: number) => {
-        const variants = msg.variants?.length > 0 ? msg.variants : [{
-          type: msg.type,
-          content: msg.content,
-          render_spec: msg.render_spec,
-          sources: msg.sources
-        }];
-        const activeIndex = variants.length - 1;
-        const activeVariant = variants[activeIndex];
-
-        return {
-          id: `hist-${job.id}-${i}`,
-          role: msg.role,
-          content: msg.content || '',
-          type: activeVariant?.type || msg.type || 'chat',
-          attachments: msg.attachments,
-          userFeedback: msg.userFeedback,
-          variants: msg.variants ? msg.variants : undefined,
-          activeVariantIndex: msg.variants ? activeIndex : undefined,
-          jobId: job.id,
-          job: (activeVariant?.type === 'video'
-            ? { ...job, status: 'done', render_spec_json: activeVariant.render_spec }
-            : (msg.role === 'assistant' ? { status: 'done', product_json: { chat_reply: activeVariant?.content || msg.content, sources: activeVariant?.sources || msg.sources } } : undefined)) as Job | undefined
-        };
-      });
-      setMessages(historyMessages);
-    } else {
-      setMessages([
-        { id: `user-${job.id}`, role: 'user', content: job.message },
-        { id: `asst-${job.id}`, role: 'assistant', content: '', jobId: job.id, job }
-      ]);
-    }
+    setMessages(mapMessages(job));
     setMobileMenuOpen(false);
   };
 

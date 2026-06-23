@@ -20,7 +20,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Job not found' }, { status: 404 });
     }
 
-    const history = job.product_json?.chat_history || [];
+    const history = job.messages?.sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) || [];
     if (history.length === 0) {
       return NextResponse.json({ error: 'No history found' }, { status: 400 });
     }

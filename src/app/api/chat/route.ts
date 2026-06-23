@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { after } from 'next/server';
-import { createJob, updateJobStatus } from '@/lib/jobs';
+import { createJob, updateJobStatus, insertMessage, updateMessage } from '@/lib/jobs';
 import { runPipelineWorker } from '@/lib/pipeline/worker';
 import { runChatAgentStream } from '@/lib/pipeline/chatAgent';
 import { ChatRequestSchema } from '@/lib/schemas';
@@ -33,15 +33,18 @@ export async function POST(req: Request) {
     const stream = new ReadableStream({
       async start(controller) {
         try {
-          const newHistory = [...history, { role: 'user', content: message, attachments: attachments.length > 0 ? attachments : undefined }];
-          
+          let assistantMessageId: string | null = null;
+
           if (!activeJobId) {
-            activeJobId = await createJob(message, userId, token, { chat_history: newHistory });
+            activeJobId = await createJob(message, userId, token, {});
+            if (activeJobId) {
+              await insertMessage({ job_id: activeJobId, user_id: userId, role: 'user', content: message, attachments: attachments.length > 0 ? attachments : undefined }, token);
+              assistantMessageId = await insertMessage({ job_id: activeJobId, user_id: userId, role: 'assistant', content: '', type: 'chat', variants: [] }, token);
+            }
           } else {
-             await updateJobStatus(activeJobId, { 
-               product_json: { chat_history: newHistory },
-               status: 'started' 
-             }, token);
+             await updateJobStatus(activeJobId, { status: 'started' }, token);
+             await insertMessage({ job_id: activeJobId, user_id: userId, role: 'user', content: message, attachments: attachments.length > 0 ? attachments : undefined }, token);
+             assistantMessageId = await insertMessage({ job_id: activeJobId, user_id: userId, role: 'assistant', content: '', type: 'chat', variants: [] }, token);
           }
           
           const jobId = activeJobId as string;
@@ -62,22 +65,18 @@ export async function POST(req: Request) {
             }
           }
 
-          const assistantMessage = { role: 'assistant', type: 'chat', content: finalReply, sources: finalSources, variants: [] as any[] };
-          const finalHistory = [...newHistory, assistantMessage];
+          const assistantMessage = { id: assistantMessageId, role: 'assistant', type: 'chat', content: finalReply, sources: finalSources, variants: [] as any[] };
           
+          if (assistantMessageId) {
+             await updateMessage(assistantMessageId, { content: finalReply, variants: [{ type: 'chat', content: finalReply, sources: finalSources }] }, token);
+          }
+
           if (shouldTriggerVideo) {
-            await updateJobStatus(jobId, {
-              product_json: { chat_history: finalHistory }
-            }, token);
-            
             after(async () => {
-              await runPipelineWorker(jobId, message, token, newHistory, undefined, assistantMessage);
+              await runPipelineWorker(jobId, message, token, history, undefined, assistantMessage);
             });
           } else {
-            await updateJobStatus(jobId, {
-              product_json: { chat_history: finalHistory },
-              status: 'done'
-            }, token);
+            await updateJobStatus(jobId, { status: 'done' }, token);
           }
           
           controller.close();
