@@ -2,6 +2,11 @@
 
 All notable changes to the Motif UGC Video Generator will be documented in this file.
 
+## [1.12.0] - 2026-06-24
+
+### Changed (UI Decomposition Phase 3)
+- **ChatFeed & VideoEditor Refactoring**: Extracted the monolithic `ChatFeed.tsx` into individual modular bubble components (`UserMessageBubble`, `VideoResultBubble`, `ChatReplyBubble`, `StatusBubble`). Refactored `VideoEditor.tsx` into specific tab components (`BackgroundTab`, `CaptionsTab`, `MemeTab`), vastly reducing file line counts and improving codebase maintainability.
+
 ## [1.11.0] - 2026-06-24
 
 ### Changed (Free Tier Hardening & Security)
