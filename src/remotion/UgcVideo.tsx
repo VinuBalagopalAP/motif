@@ -1,6 +1,7 @@
+"use client";
 import { AbsoluteFill, OffthreadVideo, Audio, Img, useCurrentFrame, useVideoConfig, spring, interpolate, delayRender, continueRender } from "remotion";
 import { Gif } from "@remotion/gif";
-import type { RenderSpec } from "@/lib/jobs";
+import type { RenderSpec } from "@/types";
 import React, { useEffect, useState } from "react";
 import { loadGoogleFont } from "@/lib/fonts";
 

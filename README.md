@@ -8,6 +8,8 @@ A highly optimized, serverless Next.js application that automatically generates 
 Powered by Gemini 2.5 Flash and Claude 3.5 Sonnet, the AI acts as a creative director and web-researcher. It features fully integrated Anthropic Tool-Use capabilities, allowing it to autonomously browse the internet, cite live sources, and scrape websites to invent custom, dynamic video concepts without relying on hardcoded datasets.
 - **Deep NDJSON Streaming**: The `/api/chat` architecture streams native chunked responses via a highly optimized `ReadableStream`. The UI reacts in real-time, delivering a ChatGPT-like conversational experience and rendering markdown instantaneously.
 - **Multi-Step Reasoning Indicators**: As the agent executes native server-side tools (like browsing the web or reading multiple sources), the chat bubble renders beautiful, pulsating "Searching the web..." status indicators to let you see what the AI is thinking *before* it begins typing.
+- **Strict Architecture**: The project has undergone rigorous enterprise-grade decomposition. The main interface (`page.tsx`) acts purely as a presentation layer, completely decoupling business logic and API orchestration into a custom `useChatEngine.ts` hook. Major UI boundaries (`ChatFeed`, `VideoEditor`, `ChatInput`, `Sidebar`, and `Modals`) are fully isolated and typed to ensure extreme stability.
+- **Optimized Re-rendering**: Implemented granular React state boundaries. Expensive text-input state is highly localized to prevent the entire DOM (including complex Markdown parsers and Video Players) from needlessly re-rendering on every user keystroke.
 
 ### ⚡ Parallelized Media Fetching & Intelligent Caching
 The pipeline simultaneously fetches assets from multiple APIs using `Promise.allSettled` to significantly boost speed:
@@ -58,7 +60,7 @@ Your chats are built for virality.
 - Manage your privacy using the built-in **Shared Links Dashboard** to copy URLs or revoke public access instantly.
 
 ### 📱 Responsive & Premium UI
-Built with vanilla CSS to ensure absolute structural control. Features a beautiful dark mode aesthetic, smooth micro-animations, glassmorphism elements, and full mobile-responsiveness (hiding the sidebar and adjusting controls natively). Includes a custom-designed Motif favicon.
+Built with **Tailwind CSS v4** to ensure rapid iteration and a robust design system. Features a beautiful, clean light-mode aesthetic, smooth micro-animations, glassmorphism elements, and full mobile-responsiveness (hiding the sidebar and adjusting controls natively). Includes a custom-designed Motif favicon.
 
 ---
 
@@ -116,6 +118,8 @@ Because this app is designed to run on free or low-tier API keys, you may encoun
 Because this project was built without a budget for enterprise AI video generation (like Runway Gen-2, Luma Dream Machine, or Sora), the visual layer relies on **Free Stock Photo/Video APIs** (Unsplash, Pexels, Coverr, Giphy, Klipy). 
 - **Generic Visuals vs. Prompt Specificity**: Even if the LLM generates a hyper-specific, perfect background query (e.g., "Gmail inbox interface layout"), the stock APIs will likely return generic results. However, the pipeline now has a two-stage fallback: **Unsplash** is queried first for high-quality portrait photos, and if nothing relevant is found, **Pollinations AI** generates the exact image from the AI's full composition prompt. This effectively eliminates blank backgrounds even for the most niche products.
 - **Why Not FFmpeg?**: A traditional video-generation pipeline would use a cloud server running FFmpeg to render out a flat `.mp4` file. However, running FFmpeg inside a Next.js serverless Vercel function (which has a 10s execution limit and 50MB memory limit) is a severe anti-pattern that crashes under load. I specifically chose the **Remotion** approach to demonstrate a scalable, zero-cost, enterprise-grade architecture that bypasses heavy cloud-rendering costs entirely.
+- **Job Polling vs WebSockets**: The client UI currently relies on a `2000ms` HTTP polling loop to check job statuses from the server. While functional for an MVP, this is a known architectural trade-off that wastes compute resources. A true enterprise implementation would use Supabase Realtime (WebSockets) for efficient, push-based updates.
+- **Monolithic UI Component**: The primary chat interface (`page.tsx`) originally functioned as a "God Object" (over 2,200 lines). This was a deliberate velocity trade-off during the rapid prototyping phase. As of v1.9.3, a structural decomposition has begun, successfully extracting `ChatFeed`, `VideoEditor`, `ChatInput`, and Modals, reducing the main orchestrator to ~1,090 lines. Future iterations will further decompose state management.
 
 ## 📝 Changelog
 To see the history of optimizations, bug fixes, and feature additions (such as the in-place prompt editor and iTunes API integration), please see the [CHANGELOG.md](CHANGELOG.md).

@@ -37,8 +37,8 @@ async function fetchAndParseDataFile(url: string): Promise<string | null> {
     const firstSheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[firstSheetName];
     return XLSX.utils.sheet_to_csv(worksheet);
-  } catch (e) {
-    console.error('Failed to parse data file:', e);
+  } catch {
+    console.error('Failed to parse data file:');
     return null;
   }
 }

@@ -1,6 +1,5 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import Anthropic from '@anthropic-ai/sdk';
-import trendPack from "../trend-pack.json";
 import { logApiHit, incrementGeminiCount } from './logger';
 import { getCachedTrend, saveCachedTrend } from './cache';
 

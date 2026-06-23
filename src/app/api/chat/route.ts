@@ -3,17 +3,28 @@ import { after } from 'next/server';
 import { createJob, updateJobStatus } from '@/lib/jobs';
 import { runPipelineWorker } from '@/lib/pipeline/worker';
 import { runChatAgentStream } from '@/lib/pipeline/chatAgent';
+import { ChatRequestSchema } from '@/lib/schemas';
+import { logger } from '@/lib/logger';
 
 export const maxDuration = 60; // Allow Vercel lambda to run up to 60s for background tasks
 
 export async function POST(req: Request) {
   try {
-    const { message, userId, history = [], chatId, attachments = [] } = await req.json();
+    const json = await req.json();
+    const result = ChatRequestSchema.safeParse(json);
+    
+    if (!result.success) {
+      logger.warn({ errors: result.error.issues }, 'Malformed chat request payload');
+      return NextResponse.json({ error: 'Invalid request payload', details: result.error.issues }, { status: 400 });
+    }
+
+    const { message, userId, history, chatId, attachments } = result.data;
     const authHeader = req.headers.get('Authorization');
     const token = authHeader?.replace('Bearer ', '');
 
-    if (!message || !userId || !token) {
-      return NextResponse.json({ error: 'Message, userId, and auth token are required' }, { status: 400 });
+    if (!token) {
+      logger.warn('Unauthorized chat request: missing token');
+      return NextResponse.json({ error: 'Auth token is required' }, { status: 401 });
     }
 
     let activeJobId = chatId;
@@ -33,12 +44,14 @@ export async function POST(req: Request) {
              }, token);
           }
           
-          controller.enqueue(new TextEncoder().encode(JSON.stringify({ type: 'init', chatId: activeJobId }) + '\n'));
+          const jobId = activeJobId as string;
+          
+          controller.enqueue(new TextEncoder().encode(JSON.stringify({ type: 'init', chatId: jobId }) + '\n'));
 
           let finalReply = "";
           let finalSources: any[] = [];
           
-          const generator = runChatAgentStream(message, history, attachments, userId, token, activeJobId);
+          const generator = runChatAgentStream(message, history, attachments, userId, token, jobId);
           for await (const event of generator) {
             controller.enqueue(new TextEncoder().encode(JSON.stringify(event) + '\n'));
             if (event.type === 'trigger_video') {
@@ -53,15 +66,15 @@ export async function POST(req: Request) {
           const finalHistory = [...newHistory, assistantMessage];
           
           if (shouldTriggerVideo) {
-            await updateJobStatus(activeJobId, {
+            await updateJobStatus(jobId, {
               product_json: { chat_history: finalHistory }
             }, token);
             
             after(async () => {
-              await runPipelineWorker(activeJobId, message, token, newHistory, undefined, assistantMessage);
+              await runPipelineWorker(jobId, message, token, newHistory, undefined, assistantMessage);
             });
           } else {
-            await updateJobStatus(activeJobId, {
+            await updateJobStatus(jobId, {
               product_json: { chat_history: finalHistory },
               status: 'done'
             }, token);
@@ -69,7 +82,7 @@ export async function POST(req: Request) {
           
           controller.close();
         } catch (e) {
-          console.error('Chat stream error:', e);
+          logger.error({ err: e, chatId: activeJobId }, 'Chat stream processing error');
           controller.error(e);
         }
       }
@@ -84,6 +97,7 @@ export async function POST(req: Request) {
       },
     });
   } catch (error) {
+    logger.error({ err: error }, 'Failed to initiate chat job');
     return NextResponse.json({ error: 'Failed to create job' }, { status: 500 });
   }
 }

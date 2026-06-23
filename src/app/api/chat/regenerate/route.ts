@@ -71,7 +71,7 @@ export async function POST(req: Request) {
             let finalReply = "";
             let finalSources: any[] = [];
             
-            const generator = runChatAgentStream(lastUserMsg.content, newHistory, lastUserMsg.attachments, job.user_id, token, jobId);
+            const generator = runChatAgentStream(lastUserMsg.content || '', newHistory, lastUserMsg.attachments, job.user_id, token, jobId);
             for await (const event of generator) {
               controller.enqueue(new TextEncoder().encode(JSON.stringify(event) + '\n'));
               if (event.type === 'done') {
@@ -109,7 +109,7 @@ export async function POST(req: Request) {
       // Re-run the video pipeline worker
       after(async () => {
         // Pass the assistantMessage object directly to the worker so it can append to it
-        await runPipelineWorker(jobId, lastUserMsg.content, token, newHistory, null, assistantMessage);
+        await runPipelineWorker(jobId, lastUserMsg.content || '', token, newHistory, null, assistantMessage);
       });
       return NextResponse.json({ success: true, type: 'video' });
     }

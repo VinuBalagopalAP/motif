@@ -2,6 +2,47 @@
 
 All notable changes to the Motif UGC Video Generator will be documented in this file.
 
+## [1.9.4] - 2026-06-24
+
+### Changed
+- **Massive React Re-render Optimization**: Localized the `input` string state completely within `ChatInput.tsx`. Previously, it was held in `useChatEngine.ts` causing the entire `page.tsx` component tree (including `ChatFeed`, `Sidebar`, and Modals) to completely re-render on every single keystroke. This change drastically improves typing performance during long chat sessions.
+- **Dead Code Pruning**: Completed a massive codebase cleanup, deleting unused route directories (`src/app/video`), removing orphaned local types (`Message`, `ParsedArtifact`), unused hooks, and redundant imports left over from the Phase 1 UI decomposition.
+
+## [1.9.3] - 2026-06-24
+
+### Changed
+- **Architecture Trade-offs Documented**: Updated documentation to reflect the architectural tradeoff of using HTTP polling vs. Supabase Realtime (WebSockets) for job status tracking to save initial MVP complexity.
+- **UI Decomposition (Phase 1)**: Executed the structural decomposition of the `page.tsx` God Object, successfully slashing its size from ~2,250 lines to ~1,090 lines without altering business logic. Extracted major UI boundaries:
+  - `ChatFeed.tsx`: Handles recursive message mapping, markdown rendering, artifact state tracking, and source citations.
+  - `VideoEditor.tsx`: Encapsulates complex media playback, font/gif controls, and caption selection logic.
+  - `ChatInput.tsx`: Encapsulates the massive footer textarea, file upload handling, and bottom bar.
+  - `Sidebar.tsx`: Encapsulates the mobile/desktop library sidebar layout and user settings menu.
+  - `Modals`: Extracted `ExportModal`, `SharedLinksModal`, `ImagePreviewModal`, `ConfirmDisableModal`, and `FeedbackModal` into a dedicated `src/components/modals/` directory.
+  - `useJobPoller.ts`: Extracted the `setInterval` API polling logic out of the UI into a dedicated hook.
+
+### Fixed
+- **History Hydration Crashes**: Fixed a critical `TypeError: Cannot read properties of undefined (reading 'type')` crash in `page.tsx` during history loading. Added defensive optional chaining (`activeVariant?.type`) around all history variant map functions to safely handle empty or malformed variant arrays.
+- **Duplicate Type Declarations**: Identified redundant `Message` interface declarations between `src/types/index.ts` and `page.tsx` for future consolidation.
+
+### Added (Enterprise Foundation)
+- **Error Boundaries**: Implemented Next.js `error.tsx` and `global-error.tsx` to catch unexpected UI rendering crashes gracefully.
+- **Zod Schema Validation**: Introduced strict runtime request validation in `/api/chat/route.ts` using `zod` to prevent malformed payloads from executing.
+- **Structured Logging (Pino)**: Added `pino` for robust, structured JSON logging (`logger.error`, `logger.warn`) in the backend, replacing weak `console.log` statements.
+- **Testing Infrastructure (Vitest)**: Initialized `vitest` and added a foundational unit test suite for the `schemas.ts` to unblock future TDD efforts.
+
+## [1.9.2] - 2026-06-23
+
+### Changed
+- **Senior Engineer Architecture Review**: Identified `ChatInterface.tsx` as misleading dead code since the Next.js App Router relies completely on `page.tsx`. Initiated a rigorous, component-by-component teardown of the 2,248-line `page.tsx` monolith to adhere to strict Single Responsibility Principles required by enterprise teams.
+
+### Fixed
+- **Strict TypeScript Compliance**: Added missing typing definitions to `src/types/index.ts` (e.g., `ChatHistoryMessage.attachments`, `variants`, `userFeedback`) to satisfy strict build requirements.
+- **Next.js Production Build**: Fixed several type-casting errors inside `page.tsx` conditional rendering blocks that were causing `npm run build` to fail in production.
+- **Undefined property crashes**: Added defensive optional chaining to the stream endpoints and `page.tsx` so the app doesn't crash when `product_json` or `lastUserMsg.content` are undefined during partial regenerations.
+
+### Removed
+- **Dead Code**: Completely eliminated the unused `src/components/ChatInterface.tsx`, its unused stub sub-components, and redundant hooks (`useChatManager`, `useJobPolling`) to clean up the workspace structure.
+
 ## [1.9.1] - 2026-06-22
 
 ### Fixed

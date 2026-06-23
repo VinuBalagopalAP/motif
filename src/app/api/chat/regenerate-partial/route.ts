@@ -53,7 +53,7 @@ export async function POST(req: Request) {
 
     // Re-run the video pipeline worker with partialTarget and existingRenderSpec
     after(async () => {
-      await runPipelineWorker(jobId, lastUserMsg.content, token, newHistory, null, assistantMessage, partialTarget, existingRenderSpec, bgType, bgPrompt);
+      await runPipelineWorker(jobId, lastUserMsg.content || '', token, newHistory, null, assistantMessage, partialTarget, existingRenderSpec, bgType, bgPrompt);
     });
 
     return NextResponse.json({ success: true, type: 'video' });
