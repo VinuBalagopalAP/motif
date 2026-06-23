@@ -2,6 +2,15 @@
 
 All notable changes to the Motif UGC Video Generator will be documented in this file.
 
+## [1.10.0] - 2026-06-24
+
+### Changed (Enterprise Database Normalization)
+- **Database Architecture Transformation**: Executed Phase 2 of the enterprise roadmap. Stripped out the monolithic, brittle `chat_history` JSONB structure from the `video_jobs` table.
+- **Relational `messages` Table**: Created a strictly normalized, fully relational `messages` table with an explicit foreign key (`job_id`) linking back to the `video_jobs` table. This completely eliminates the 60-second fetch-modify-write race conditions the Vercel background workers were facing.
+- **Data Backfill**: Executed `0009_create_messages.sql` with an elegant `jsonb_array_elements` migration script to parse all legacy JSON chat histories into the new strongly-typed SQL table, preserving chronological order and user feedback without data loss.
+- **Decoupled API Architecture**: The Next.js API Routes (`/api/chat`, `/api/chat/edit`, `/api/feedback`, and `/api/chat/regenerate`) now exclusively execute row-by-row `INSERT` and `UPDATE` statements on the `messages` table using dedicated `job.ts` helper methods.
+- **Strict DB Typing**: Deleted `chat_history` from the loose `ProductJson` typing schema and added strict `DbMessage[]` properties to the overarching `Job` type in `src/types/index.ts`.
+
 ## [1.9.4] - 2026-06-24
 
 ### Changed

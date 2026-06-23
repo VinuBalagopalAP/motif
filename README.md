@@ -37,6 +37,7 @@ The video editor interface allows for rich text manipulation directly on the Rem
 Integrated with a PostgreSQL database via **Supabase**.
 - Employs strict Row-Level Security (RLS) policies.
 - Background workers safely execute database updates by temporarily assuming the user's secure authentication token, preventing silent permission drops.
+- **Enterprise Normalized Architecture**: The application strictly separates job tracking (`video_jobs` table) from user conversations (`messages` table). This deeply relational design completely eliminates fetch-modify-write JSON race conditions under heavy load, ensuring the Vercel background workers can safely `upsert` rendering specs to isolated message rows.
 - Polling mechanism instantly streams live UI updates (e.g., "Scraping site", "Writing hooks").
 
 ### 💬 Threaded Chat Sessions
