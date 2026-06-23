@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { createClient } from '@supabase/supabase-js';
+import { z } from 'zod';
+import { logger } from '@/lib/logger';
+
+const ShareRequestSchema = z.object({
+  jobId: z.string().uuid(),
+  messages: z.array(z.any()).min(1),
+  shareType: z.enum(['entire', 'single']).default('entire')
+});
 
 export async function POST(req: NextRequest) {
   try {
@@ -8,20 +16,26 @@ export async function POST(req: NextRequest) {
     const token = authHeader?.replace('Bearer ', '');
     
     if (!token) {
+      logger.warn('Unauthorized share request: missing token');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const { data: { user } } = await supabase.auth.getUser(token);
 
     if (!user) {
+      logger.warn('Unauthorized share request: invalid token');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { jobId, messages, shareType = 'entire' } = await req.json();
+    const json = await req.json();
+    const parseResult = ShareRequestSchema.safeParse(json);
 
-    if (!jobId || !messages) {
-      return NextResponse.json({ error: 'Missing jobId or messages' }, { status: 400 });
+    if (!parseResult.success) {
+      logger.warn({ issues: parseResult.error.issues }, 'Invalid share request payload');
+      return NextResponse.json({ error: 'Invalid request payload', details: parseResult.error.issues }, { status: 400 });
     }
+
+    const { jobId, messages, shareType } = parseResult.data;
 
     // Persist shareType in the first message to identify this share's type later
     if (messages.length > 0) {
@@ -70,7 +84,7 @@ export async function POST(req: NextRequest) {
         .eq('id', existingShare.id);
 
       if (updateError) {
-        console.error('Error updating share link:', updateError);
+        logger.error({ err: updateError, jobId }, 'Error updating share link');
         return NextResponse.json({ error: 'Failed to update share link' }, { status: 500 });
       }
       
@@ -89,13 +103,13 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (error) {
-      console.error('Error creating share link:', error);
+      logger.error({ err: error, jobId }, 'Error creating share link');
       return NextResponse.json({ error: 'Failed to create share link' }, { status: 500 });
     }
 
     return NextResponse.json({ shareId: data.id });
   } catch (error) {
-    console.error('Error in /api/share:', error);
+    logger.error({ err: error }, 'Error in /api/share POST');
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

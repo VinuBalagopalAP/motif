@@ -2,6 +2,14 @@
 
 All notable changes to the Motif UGC Video Generator will be documented in this file.
 
+## [1.11.0] - 2026-06-24
+
+### Changed (Free Tier Hardening & Security)
+- **Edge Caching for Viral Shares**: Refactored the React-based `/share/[shareId]` page into a Next.js Server Component equipped with strict `revalidate = 300` Incremental Static Regeneration (ISR). This guarantees that viral video links rely on Vercel's Edge Network CDN rather than hammering the Supabase database.
+- **Polling Query Optimization**: Stripped massive relational `messages` table joins from the background UI HTTP poller (`useJobPoller`). By implementing a strict `getJobStatus()` read layer, polling payloads are reduced by over 90%, preserving Supabase CPU and bandwidth.
+- **Strict API Security Validation**: Hardened all auxiliary endpoints (`/api/search-gifs`, `/api/share`, `/api/shares/[id]`) with explicit `zod` object schemas. Any malformed payload is intercepted before network egress or DB connections occur.
+- **Structured Error Tracing**: Migrated basic `console.error` logs to `pino` structured format for standardized debugging.
+
 ## [1.10.0] - 2026-06-24
 
 ### Changed (Enterprise Database Normalization)

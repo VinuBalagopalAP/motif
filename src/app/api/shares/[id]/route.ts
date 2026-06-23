@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { createClient } from '@supabase/supabase-js';
+import { logger } from '@/lib/logger';
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -9,12 +10,14 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     const token = authHeader?.replace('Bearer ', '');
     
     if (!token) {
+      logger.warn('Unauthorized share delete: missing token');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const { data: { user } } = await supabase.auth.getUser(token);
 
     if (!user) {
+      logger.warn('Unauthorized share delete: invalid token');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -31,13 +34,13 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       .eq('user_id', user.id);
 
     if (error) {
-      console.error('Error deleting share link:', error);
+      logger.error({ err: error, shareId: resolvedParams.id }, 'Error deleting share link');
       return NextResponse.json({ error: 'Failed to delete share link' }, { status: 500 });
     }
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error in DELETE /api/shares/[id]:', error);
+    logger.error({ err: error }, 'Error in DELETE /api/shares/[id]');
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

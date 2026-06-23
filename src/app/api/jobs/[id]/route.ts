@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getJob } from '@/lib/jobs';
+import { getJobStatus } from '@/lib/jobs';
 
 export async function GET(
   req: Request,
@@ -9,7 +9,7 @@ export async function GET(
   const authHeader = req.headers.get('Authorization');
   const token = authHeader?.replace('Bearer ', '');
   
-  const job = await getJob(id, token);
+  const job = await getJobStatus(id, token);
 
   if (!job) {
     return NextResponse.json({ error: 'Job not found' }, { status: 404 });

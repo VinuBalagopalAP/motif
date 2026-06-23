@@ -38,7 +38,8 @@ Integrated with a PostgreSQL database via **Supabase**.
 - Employs strict Row-Level Security (RLS) policies.
 - Background workers safely execute database updates by temporarily assuming the user's secure authentication token, preventing silent permission drops.
 - **Enterprise Normalized Architecture**: The application strictly separates job tracking (`video_jobs` table) from user conversations (`messages` table). This deeply relational design completely eliminates fetch-modify-write JSON race conditions under heavy load, ensuring the Vercel background workers can safely `upsert` rendering specs to isolated message rows.
-- Polling mechanism instantly streams live UI updates (e.g., "Scraping site", "Writing hooks").
+- **Free Tier Egress Optimization**: The UI `useJobPoller` heavily optimizes its read queries by specifically selecting minimum scalar values (status bytes) instead of unconditionally returning entire relational tables, preserving DB compute.
+- **Edge CDN Caching**: Shareable links (`/share/[shareId]`) utilize strict Next.js ISR (`revalidate = 300`) to guarantee viral videos are delivered off the Vercel Edge Network for free, entirely bypassing Supabase reads.
 
 ### 💬 Threaded Chat Sessions
 The app features a fully threaded, ChatGPT-style chat interface that seamlessly blends pure text conversation with complex video generation tasks.

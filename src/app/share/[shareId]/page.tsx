@@ -1,52 +1,22 @@
-'use client';
-
-import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
+import { supabase } from '@/lib/supabase';
+import { notFound } from 'next/navigation';
 
-export default function SharedChatPage() {
-  const params = useParams();
-  const shareId = params?.shareId as string;
-  const [messages, setMessages] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+export const revalidate = 300; // Cache on Vercel Edge for 5 minutes
 
-  useEffect(() => {
-    if (!shareId) return;
+export default async function SharedChatPage({ params }: { params: Promise<{ shareId: string }> }) {
+  const resolvedParams = await params;
+  const shareId = resolvedParams.shareId;
 
-    const fetchSharedChat = async () => {
-      try {
-        const { supabase } = await import('@/lib/supabase');
-        
-        const { data, error } = await supabase
-          .from('shared_chats')
-          .select('messages_json, created_at')
-          .eq('id', shareId)
-          .single();
+  if (!shareId) return notFound();
 
-        if (error) throw error;
-        
-        if (data) {
-          setMessages(data.messages_json);
-        }
-      } catch (err) {
-        console.error('Failed to load shared chat', err);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const { data, error } = await supabase
+    .from('shared_chats')
+    .select('messages_json, created_at')
+    .eq('id', shareId)
+    .single();
 
-    fetchSharedChat();
-  }, [shareId]);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#f9f9fa] flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-gray-200 border-t-[#08c225] rounded-full animate-spin"></div>
-      </div>
-    );
-  }
-
-  if (!messages || messages.length === 0) {
+  if (error || !data || !data.messages_json || data.messages_json.length === 0) {
     return (
       <div className="min-h-screen bg-[#f9f9fa] flex items-center justify-center flex-col gap-4">
         <h2 className="text-xl font-bold text-gray-800">Chat Not Found</h2>
@@ -54,6 +24,8 @@ export default function SharedChatPage() {
       </div>
     );
   }
+
+  const messages = data.messages_json as any[];
 
   return (
     <div className="min-h-screen bg-[#f9f9fa] flex flex-col items-center py-12 px-4">
@@ -63,9 +35,9 @@ export default function SharedChatPage() {
           <span className="font-bold text-gray-800 tracking-tight text-xl">Motif</span>
           <span className="ml-2 px-2 py-1 bg-gray-100 text-gray-500 text-xs font-bold rounded-lg tracking-wider">SHARED</span>
         </div>
-        <button onClick={() => window.location.href = '/'} className="px-4 py-2 bg-white text-gray-700 border border-gray-200 rounded-full font-semibold text-sm hover:bg-gray-50 transition-colors shadow-sm">
+        <a href="/" className="px-4 py-2 bg-white text-gray-700 border border-gray-200 rounded-full font-semibold text-sm hover:bg-gray-50 transition-colors shadow-sm block text-center">
           Start your own chat
-        </button>
+        </a>
       </div>
 
       <div className="w-full max-w-3xl space-y-6 pb-32">

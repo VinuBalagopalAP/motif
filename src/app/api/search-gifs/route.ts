@@ -1,13 +1,22 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { z } from 'zod';
+import { logger } from '@/lib/logger';
+
+const SearchQuerySchema = z.object({
+  q: z.string().min(1).max(100)
+});
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const query = searchParams.get('q');
+  const parseResult = SearchQuerySchema.safeParse({ q: searchParams.get('q') });
 
-  if (!query) {
-    return NextResponse.json({ error: 'Query parameter "q" is required' }, { status: 400 });
+  if (!parseResult.success) {
+    logger.warn({ issues: parseResult.error.issues }, 'Invalid search-gifs query');
+    return NextResponse.json({ error: 'Query parameter "q" must be between 1 and 100 characters' }, { status: 400 });
   }
+
+  const query = parseResult.data.q;
 
   try {
     // 1. Check Supabase Cache first
@@ -17,7 +26,7 @@ export async function GET(request: Request) {
       .eq('query', query.toLowerCase())
       .eq('asset_type', 'gif')
       .single();
-      
+
     if (cached && cached.data && Array.isArray(cached.data) && cached.data.length > 0) {
       return NextResponse.json({ options: cached.data });
     }
