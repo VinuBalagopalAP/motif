@@ -31,10 +31,11 @@ export function StatusBubble({ message: m, stopJob }: StatusBubbleProps) {
       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/50 to-transparent h-full w-full animate-[shimmer-slide_3s_ease-in-out_infinite]"></div>
       <div className="relative z-10 flex flex-col items-center gap-4">
         <div className="w-10 h-10 border-2 border-gray-200 border-t-[#08c225] rounded-full animate-spin"></div>
-        <div className="text-sm font-medium text-[#757575]">
-          {m.job?.status === 'scraping' ? 'Analyzing source...' :
-            m.job?.status === 'planning' ? 'Generating assets...' :
-              'Rendering video...'}
+        <div className="text-sm font-medium text-[#757575] max-w-[200px] text-center">
+          {m.job?.status === 'switching_model' ? 'Switching model...' :
+            m.job?.status === 'scraping' ? 'Analyzing source...' :
+              m.job?.status === 'planning' ? 'Generating assets...' :
+                'Rendering video...'}
         </div>
         <button
           onClick={() => m.jobId && stopJob(m.jobId)}

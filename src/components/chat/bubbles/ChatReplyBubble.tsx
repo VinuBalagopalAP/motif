@@ -13,6 +13,7 @@ interface ChatReplyBubbleProps {
   sharingJobId: string | null;
   handleShareSingleMessage: (jobId: string, msgId: string) => void;
   handleRegenerate: (jobId: string, msgId: string) => void;
+  isLatest?: boolean;
 }
 
 const parseMessageParts = (text: string) => {
@@ -74,7 +75,8 @@ export function ChatReplyBubble({
   handleFeedback,
   sharingJobId,
   handleShareSingleMessage,
-  handleRegenerate
+  handleRegenerate,
+  isLatest = false
 }: ChatReplyBubbleProps) {
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
 
@@ -158,7 +160,7 @@ export function ChatReplyBubble({
             </div>
           </div>
         )}
-        {m.job?.status !== 'done' && (
+        {m.job?.status !== 'done' && isLatest && (
           <div className={`flex items-center gap-3 text-[#757575] font-semibold text-sm ${activeContent ? 'mt-4 pt-4 border-t border-gray-100' : ''}`}>
             <div className="w-4 h-4 border-2 border-gray-200 border-t-[#08c225] rounded-full animate-spin"></div>
             <span className="animate-pulse">{m.job?.status || 'Thinking...'}</span>

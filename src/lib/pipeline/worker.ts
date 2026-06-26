@@ -56,7 +56,16 @@ export async function runPipelineWorker(
         if (partialTarget !== 'background') {
           // If partialTarget is present OR it's a full regeneration (assistantMessage is present), we FORCE BYPASS cache to get fresh new variations.
           const bypassCache = !!partialTarget || !!assistantMessage;
-          concept = await generateConcept(message, scrapedData, productName, history, bypassCache);
+          concept = await generateConcept(
+            message, 
+            scrapedData, 
+            productName, 
+            history, 
+            bypassCache,
+            async (status) => {
+              await updateJobStatus(jobId, { status: status as any }, token);
+            }
+          );
 
           // Save the extracted product name from the concept
           await updateJobStatus(jobId, {

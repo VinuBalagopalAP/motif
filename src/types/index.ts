@@ -1,4 +1,4 @@
-export type JobStatus = 'queued' | 'started' | 'scraping' | 'planning' | 'picking assets' | 'done' | 'error';
+export type JobStatus = 'queued' | 'started' | 'scraping' | 'planning' | 'picking assets' | 'switching_model' | 'done' | 'error';
 
 export interface Source {
   url: string;

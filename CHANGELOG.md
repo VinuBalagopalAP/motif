@@ -2,6 +2,12 @@
 
 All notable changes to the Motif UGC Video Generator will be documented in this file.
 
+## [1.12.1] - 2026-06-27
+
+### Fixed
+- **Gemini API Compatibility**: Resolved a `400 Bad Request` crash in `GeminiProvider` caused by mixing built-in tools (like Google Search) with function declarations in the same request stream. Removed the Google Search tool when using custom function tools like `generate_ugc_video` and `save_memory`.
+- **Pipeline Concept Prompting**: Restored the critical system prompt in `generateConcepts.ts` which had been inadvertently removed during a refactor. The pipeline now correctly instructs the LLM to output valid JSON for the video rendering specification instead of passing raw user messages directly to the API, fixing pipeline crashes due to invalid JSON parsing.
+
 ## [1.12.0] - 2026-06-24
 
 ### Changed (UI Decomposition Phase 3)

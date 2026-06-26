@@ -111,6 +111,7 @@ export function ChatFeed({
                         sharingJobId={sharingJobId}
                         handleShareSingleMessage={handleShareSingleMessage}
                         handleRegenerate={handleRegenerate}
+                        isLatest={index === messages.length - 1}
                       />
                     ) : (
                       <StatusBubble
