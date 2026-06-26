@@ -1,77 +1,36 @@
-"use client";
-import { useState, useRef, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
-import { useJobPoller } from '@/hooks/useJobPoller';
+import { useAppStore } from "@/store/useAppStore";
+import { useChatStore, Message } from "@/store/useChatStore";
 import { supabase } from "@/lib/supabase";
-import type { Job } from "@/types";
 
-interface ParsedArtifact {
-  id: string;
-  identifier: string;
-  type: string;
-  title: string;
-  content: string;
-  isGenerating?: boolean;
-}
+export function useChatActions() {
+  const { user, session } = useAuth();
 
-type Message = {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  type?: string;
-  jobId?: string;
-  job?: Job;
-  attachments?: { url: string; type: string; name: string }[];
-  userFeedback?: 'up' | 'down';
-  variants?: any[];
-  activeVariantIndex?: number;
-  sources?: any[];
-};
+  const {
+    messages, setMessages,
+    setLoading, loading,
+    activeChatId, setActiveChatId,
+    attachments, setAttachments,
+    fontTargetMessageId, setFontTargetMessageId,
+    fontTargetSection, setFontTargetSection,
+    setIsUploadingFont, fetchHistory
+  } = useChatStore();
 
-export function useChatEngine() {
-  const { user, session, loading: authLoading } = useAuth();
-  const router = useRouter();
+  const {
+    setToast,
+    setFeedbackModalState,
+    feedbackModalState,
+    feedbackReason,
+    setSharingJobId,
+    sharedLinks,
+    setSharedLinks,
+    setLoadingSharedLinks,
+    setLinkToDisable,
+    setUploadingFiles,
+    uploadingFiles,
+  } = useAppStore();
 
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [historyJobs, setHistoryJobs] = useState<Job[]>([]);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [exportModalOpen, setExportModalOpen] = useState(false);
-  const [activeChatId, setActiveChatId] = useState<string | null>(null);
-  const [attachments, setAttachments] = useState<{ url: string; type: string; name: string }[]>([]);
-  const [uploadingFiles, setUploadingFiles] = useState(false);
-  const [activeArtifact, setActiveArtifact] = useState<ParsedArtifact | null>(null);
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
-  const [activeView, setActiveView] = useState<'chat' | 'dashboard'>('chat');
-
-  // Phase 3 State
-  const [feedbackModalState, setFeedbackModalState] = useState<{ isOpen: boolean; feedbackId: string; job_id: string; index: number; is_positive: boolean } | null>(null);
-  const [feedbackReason, setFeedbackReason] = useState("");
-  const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
-  const [sharingJobId, setSharingJobId] = useState<string | null>(null);
-
-  const [sharedLinksModalOpen, setSharedLinksModalOpen] = useState(false);
-  const [sharedLinks, setSharedLinks] = useState<any[]>([]);
-  const [loadingSharedLinks, setLoadingSharedLinks] = useState(false);
-  const [linkToDisable, setLinkToDisable] = useState<string | null>(null);
-  const [settingsMenuOpen, setSettingsMenuOpen] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-
-  const params = useParams();
-  const initialChatIdLoaded = useRef(false);
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  // Custom Font Upload State
-  const fontFileInputRef = useRef<HTMLInputElement>(null);
-  const [fontTargetMessageId, setFontTargetMessageId] = useState<string | null>(null);
-  const [fontTargetSection, setFontTargetSection] = useState<'linked' | 'top' | 'bottom' | null>(null);
-  const [isUploadingFont, setIsUploadingFont] = useState(false);
-
-  const handleFontUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFontUpload = async (e: React.ChangeEvent<HTMLInputElement>, fontFileInputRef: React.RefObject<HTMLInputElement | null>) => {
     const file = e.target.files?.[0];
     if (!file || !fontTargetMessageId || !fontTargetSection) return;
 
@@ -102,6 +61,7 @@ export function useChatEngine() {
           const activeIdx = msg.activeVariantIndex ?? variants.length - 1;
           const spec = JSON.parse(JSON.stringify(variants[activeIdx].render_spec));
 
+          if (!spec.overlayText) spec.overlayText = {};
           if (!spec.overlayText.style) spec.overlayText.style = {};
 
           if (fontTargetSection === 'linked') {
@@ -132,78 +92,8 @@ export function useChatEngine() {
     }
   };
 
-  // Authentication check
-  useEffect(() => {
-    if (!authLoading && !user) {
-      router.push('/login');
-    }
-  }, [user, authLoading, router]);
-
-  // Keyboard shortcut to toggle sidebar
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Cmd+\ on Mac or Ctrl+\ on Windows
-      if ((e.metaKey || e.ctrlKey) && e.key === '\\') {
-        e.preventDefault();
-        setSidebarOpen(prev => !prev);
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
-
-  // Fetch History
-  const fetchHistory = async () => {
-    if (!user) return;
-    const { data, error } = await supabase
-      .from('video_jobs')
-      .select('*, messages(*)')
-      .order('created_at', { ascending: false });
-
-    if (data) {
-      setHistoryJobs(data);
-    }
-  };
-
-  const deleteJob = async (jobId: string) => {
-    try {
-      const { error } = await supabase
-        .from('video_jobs')
-        .delete()
-        .eq('id', jobId);
-
-      if (!error) {
-        setHistoryJobs(prev => prev.filter(job => job.id !== jobId));
-        if (messages.some(m => m.jobId === jobId)) {
-          setMessages([]);
-        }
-      } else {
-        console.error("Failed to delete job:", error);
-      }
-    } catch (e) {
-      console.error("Failed to delete job:", e);
-    }
-  };
-  const stopJob = async (jobId: string) => {
-    try {
-      const { error } = await supabase
-        .from('video_jobs')
-        .update({ status: 'error', error: 'Cancelled by user' })
-        .eq('id', jobId);
-
-      if (!error) {
-        setMessages(prev => prev.map(m =>
-          m.jobId === jobId && m.job ? { ...m, job: { ...m.job, status: 'error', error: 'Cancelled by user' } } : m
-        ));
-      }
-    } catch (e) {
-      console.error("Failed to stop job:", e);
-    }
-  };
-
   const handleFeedback = async (msgId: string, jobId: string, index: number, variantIndex: number, isPositive: boolean) => {
     if (!session) return;
-    console.log("Feedback clicked on message:", { msgId, jobId, index, isPositive });
     setMessages(prev => prev.map(m => m.id === msgId ? { ...m, userFeedback: isPositive ? 'up' : 'down' } : m));
 
     try {
@@ -216,11 +106,9 @@ export function useChatEngine() {
         body: JSON.stringify({ msgId, jobId, messageIndex: index, variantIndex, isPositive })
       });
       const data = await res.json();
-      console.log("Feedback API response:", data);
       if (res.ok && data.feedbackId) {
         if (!isPositive) {
           setFeedbackModalState({ isOpen: true, feedbackId: data.feedbackId, job_id: jobId, index, is_positive: isPositive });
-          setFeedbackReason("");
         }
       }
     } catch (e) {
@@ -230,7 +118,6 @@ export function useChatEngine() {
 
   const submitFeedbackReason = async () => {
     if (!feedbackModalState || !session) return;
-    console.log("Submitting feedback reason:", { feedbackId: feedbackModalState.feedbackId, reason: feedbackReason });
     try {
       const res = await fetch('/api/feedback', {
         method: 'PUT',
@@ -240,7 +127,6 @@ export function useChatEngine() {
         },
         body: JSON.stringify({ feedbackId: feedbackModalState.feedbackId, reason: feedbackReason })
       });
-      console.log("Feedback reason API response status:", res.status);
       setFeedbackModalState(null);
     } catch (e) {
       console.error(e);
@@ -318,12 +204,6 @@ export function useChatEngine() {
     }
   };
 
-  useEffect(() => {
-    if (sharedLinksModalOpen && session?.access_token) {
-      fetchSharedLinks();
-    }
-  }, [sharedLinksModalOpen, session?.access_token]);
-
   const deleteSharedLink = async (id: string) => {
     try {
       const res = await fetch(`/api/shares/${id}`, {
@@ -331,7 +211,7 @@ export function useChatEngine() {
         headers: { 'Authorization': `Bearer ${session?.access_token}` }
       });
       if (res.ok) {
-        setSharedLinks(prev => prev.filter(link => link.id !== id));
+        setSharedLinks(sharedLinks.filter(link => link.id !== id));
         setToast('Link disabled successfully');
         setTimeout(() => setToast(null), 3000);
       }
@@ -342,15 +222,7 @@ export function useChatEngine() {
     }
   };
 
-
-
-  useEffect(() => {
-    if (user) {
-      fetchHistory();
-    }
-  }, [user]);
-
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, fileInputRef: React.RefObject<HTMLInputElement | null>) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
     setUploadingFiles(true);
@@ -385,95 +257,6 @@ export function useChatEngine() {
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
-
-  const mapMessages = (job: any): Message[] => {
-    if (job.messages && job.messages.length > 0) {
-      const sortedMessages = [...job.messages].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-      return sortedMessages.map((msg: any) => {
-        const variants = msg.variants?.length > 0 ? msg.variants : [{
-          type: msg.type,
-          content: msg.content,
-          render_spec: msg.render_spec,
-          sources: msg.sources
-        }];
-        const activeIndex = variants.length - 1;
-        const activeVariant = variants[activeIndex];
-
-        return {
-          id: msg.id,
-          role: msg.role as 'user' | 'assistant',
-          content: msg.content || '',
-          type: activeVariant?.type || msg.type || 'chat',
-          attachments: msg.attachments,
-          userFeedback: msg.user_feedback || msg.userFeedback,
-          variants: msg.variants?.length > 0 ? msg.variants : undefined,
-          activeVariantIndex: msg.variants?.length > 0 ? activeIndex : undefined,
-          jobId: job.id,
-          job: (activeVariant?.type === 'video'
-            ? { ...job, status: 'done', render_spec_json: activeVariant.render_spec }
-            : (msg.role === 'assistant' ? { status: 'done', product_json: { chat_reply: activeVariant?.content || msg.content, sources: activeVariant?.sources || msg.sources } } : undefined)) as Job | undefined
-        };
-      });
-    } else {
-      return [
-        { id: `user-${job.id}`, role: 'user', content: job.message },
-        { id: `asst-${job.id}`, role: 'assistant', content: '', jobId: job.id, job }
-      ] as Message[];
-    }
-  };
-
-  // Initial load from URL
-  useEffect(() => {
-    if (user && historyJobs.length > 0 && !initialChatIdLoaded.current) {
-      const chatIdArray = params?.chatId as string[] | undefined;
-      if (chatIdArray && chatIdArray[0] === 'c' && chatIdArray[1]) {
-        const jobId = chatIdArray[1];
-        const job = historyJobs.find(j => j.id === jobId);
-        if (job) {
-          setActiveChatId(job.id);
-          setMessages(mapMessages(job));
-          initialChatIdLoaded.current = true;
-        } else {
-          window.history.replaceState(null, '', '/');
-        }
-      } else {
-        initialChatIdLoaded.current = true;
-      }
-    }
-  }, [user, historyJobs, params]);
-
-  const scrollToBottom = () => {
-    const main = document.getElementById("chat-main");
-    if (main) {
-      main.scrollTo({ top: main.scrollHeight, behavior: "smooth" });
-    }
-  };
-
-  const prevMessagesLength = useRef(messages.length);
-  useEffect(() => {
-    const isStreaming = messages.some(m => (m.job?.status as any) === 'Streaming text...');
-    if (isStreaming || messages.length > prevMessagesLength.current) {
-      scrollToBottom();
-    }
-    prevMessagesLength.current = messages.length;
-  }, [messages]);
-
-  // Polling for job status has been extracted to a custom hook
-  useJobPoller(messages, setMessages, session, fetchHistory);
-
-  // Suppress harmless Remotion image decoding abort errors from littering the Next.js terminal
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    const handler = (event: PromiseRejectionEvent) => {
-      if (event.reason && (event.reason.name === 'EncodingError' || (event.reason.message && event.reason.message.includes('EncodingError')))) {
-        event.preventDefault(); // Stops Next.js from capturing and printing it to the terminal
-      }
-    };
-
-    window.addEventListener('unhandledrejection', handler);
-    return () => window.removeEventListener('unhandledrejection', handler);
-  }, []);
 
   const runGeneration = async (prompt: string, historyOverride?: Message[]) => {
     if ((!prompt.trim() && attachments.length === 0) || !user || !session || loading || uploadingFiles) return;
@@ -580,7 +363,7 @@ export function useChatEngine() {
             }
           }
         }
-        fetchHistory();
+        fetchHistory(user);
       } else {
         const data = await res.json();
         if (!activeChatId && data.chatId) {
@@ -590,7 +373,7 @@ export function useChatEngine() {
         setMessages(prev => prev.map(m =>
           m.id === assistantMessage.id ? { ...m, jobId: data.jobId } : m
         ));
-        fetchHistory(); // Only fetch history for UGC video jobs
+        fetchHistory(user);
       }
     } catch (err) {
       console.error(err);
@@ -683,7 +466,7 @@ export function useChatEngine() {
         }
       } else {
         if (res.ok) {
-          fetchHistory(); // Video job runs in background, polling will update UI
+          fetchHistory(user); 
         }
       }
     } catch (err) {
@@ -705,16 +488,13 @@ export function useChatEngine() {
         },
         body: JSON.stringify({ jobId, partialTarget, bgType, bgPrompt })
       });
-      // the job poller will pick up the rest!
     } catch (e) {
       console.error(e);
     }
   };
 
   const handleEditSubmit = async (msgId: string, newMessage: string, oldContent: string) => {
-    if (newMessage.trim() === oldContent || !newMessage.trim()) {
-      return;
-    }
+    if (newMessage.trim() === oldContent || !newMessage.trim()) return;
     if (!session) return;
 
     if (msgId.startsWith('hist-') || !msgId.startsWith('user-')) {
@@ -745,58 +525,15 @@ export function useChatEngine() {
           }
           return m;
         }));
-        fetchHistory();
+        fetchHistory(user);
       }
     } catch (err) {
       console.error(err);
     }
   };
 
-  const loadJob = (job: Job) => {
-    window.history.pushState(null, '', `/c/${job.id}`);
-    setActiveChatId(job.id);
-    setActiveView('chat');
-    setMessages(mapMessages(job));
-    setMobileMenuOpen(false);
-  };
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-  };
-
-
   return {
-    user, session, authLoading, router, params,
-    messages, setMessages,
-    loading, setLoading,
-    historyJobs, setHistoryJobs,
-    mobileMenuOpen, setMobileMenuOpen,
-    exportModalOpen, setExportModalOpen,
-    activeChatId, setActiveChatId,
-    attachments, setAttachments,
-    uploadingFiles, setUploadingFiles,
-    activeArtifact, setActiveArtifact,
-    previewImage, setPreviewImage,
-    toast, setToast,
-    activeView, setActiveView,
-    feedbackModalState, setFeedbackModalState,
-    feedbackReason, setFeedbackReason,
-    activeMenuId, setActiveMenuId,
-    sharingJobId, setSharingJobId,
-    sharedLinksModalOpen, setSharedLinksModalOpen,
-    sharedLinks, setSharedLinks,
-    loadingSharedLinks, setLoadingSharedLinks,
-    linkToDisable, setLinkToDisable,
-    settingsMenuOpen, setSettingsMenuOpen,
-    sidebarOpen, setSidebarOpen,
-    fileInputRef, messagesEndRef, fontFileInputRef,
-    fontTargetMessageId, setFontTargetMessageId,
-    fontTargetSection, setFontTargetSection,
-    isUploadingFont, setIsUploadingFont,
     handleFontUpload,
-    fetchHistory,
-    deleteJob,
-    stopJob,
     handleFeedback,
     submitFeedbackReason,
     handleShare,
@@ -806,10 +543,8 @@ export function useChatEngine() {
     deleteSharedLink,
     handleFileChange,
     runGeneration,
-    handleEditSubmit,
     handleRegenerate,
     handlePartialRegenerate,
-    loadJob,
-    handleLogout
+    handleEditSubmit
   };
 }

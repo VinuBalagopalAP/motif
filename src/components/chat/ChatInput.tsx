@@ -1,39 +1,26 @@
 import React from 'react';
 import TextareaAutosize from 'react-textarea-autosize';
 import packageJson from "../../../package.json";
-
-interface Attachment {
-  type: string;
-  url: string;
-  name: string;
-}
+import { useAppStore } from "@/store/useAppStore";
+import { useChatStore } from "@/store/useChatStore";
+import { useChatActions } from "@/hooks/useChatActions";
 
 interface ChatInputProps {
   fileInputRef: React.RefObject<HTMLInputElement | null>;
   fontFileInputRef: React.RefObject<HTMLInputElement | null>;
-  handleFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  handleFontUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  attachments: Attachment[];
-  setAttachments: React.Dispatch<React.SetStateAction<Attachment[]>>;
-  uploadingFiles: boolean;
-  loading: boolean;
-  isGenerating: boolean;
-  runGeneration: (prompt: string) => void;
 }
 
 export function ChatInput({
   fileInputRef,
-  fontFileInputRef,
-  handleFileChange,
-  handleFontUpload,
-  attachments,
-  setAttachments,
-  uploadingFiles,
-  loading,
-  isGenerating,
-  runGeneration
+  fontFileInputRef
 }: ChatInputProps) {
   const [input, setInput] = React.useState("");
+  
+  const { uploadingFiles } = useAppStore();
+  const { loading, attachments, setAttachments, messages } = useChatStore();
+  const { runGeneration, handleFileChange, handleFontUpload } = useChatActions();
+
+  const isGenerating = messages.some(m => m.jobId && m.job?.status !== 'done' && m.job?.status !== 'error');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,14 +41,14 @@ export function ChatInput({
               className="hidden"
               multiple
               accept="image/*,application/pdf,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-              onChange={handleFileChange}
+              onChange={(e) => handleFileChange(e, fileInputRef)}
             />
             <input
               type="file"
               ref={fontFileInputRef}
               className="hidden"
               accept=".ttf,.otf"
-              onChange={handleFontUpload}
+              onChange={(e) => handleFontUpload(e, fontFileInputRef)}
             />
 
             {attachments.length > 0 && (
@@ -109,6 +96,7 @@ export function ChatInput({
                       e.preventDefault();
                       if (!loading && !isGenerating && !uploadingFiles && (input.trim() || attachments.length > 0)) {
                         runGeneration(input);
+                        setInput("");
                       }
                     }
                   }

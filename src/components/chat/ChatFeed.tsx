@@ -4,46 +4,51 @@ import { UserMessageBubble } from '@/components/chat/bubbles/UserMessageBubble';
 import { VideoResultBubble } from '@/components/chat/bubbles/VideoResultBubble';
 import { ChatReplyBubble } from '@/components/chat/bubbles/ChatReplyBubble';
 import { StatusBubble } from '@/components/chat/bubbles/StatusBubble';
+import { useAppStore } from '@/store/useAppStore';
+import { useChatStore } from '@/store/useChatStore';
+import { useChatActions } from '@/hooks/useChatActions';
+import { useJobPoller } from '@/hooks/useJobPoller';
+import { useAuth } from '@/components/AuthProvider';
 
 interface ChatFeedProps {
-  messages: any[];
-  setMessages: React.Dispatch<React.SetStateAction<any[]>>;
-  handleEditSubmit: (msgId: string, newContent: string, oldContent: string) => void;
-  setActiveArtifact: (artifact: any) => void;
-  setExportModalOpen: (open: boolean) => void;
-  sharingJobId: string | null;
-  handleShareSingleMessage: (jobId: string, msgId: string) => void;
-  handleRegenerate: (jobId: string, msgId: string) => void;
-  handlePartialRegenerate: (jobId: string, msgId: string, partialTarget: 'caption' | 'gif' | 'audio' | 'background', bgType?: string, bgPrompt?: string) => void;
-  handleFeedback: (msgId: string, jobId: string, index: number, variantIndex: number, isUpvote: boolean) => void;
-  stopJob: (jobId: string) => void;
-  setFontTargetMessageId: (id: string | null) => void;
-  setFontTargetSection: (section: 'top' | 'bottom' | 'linked' | null) => void;
   fontFileInputRef: React.RefObject<HTMLInputElement | null>;
   messagesEndRef: React.RefObject<HTMLDivElement | null>;
-  setPreviewImage: (url: string | null) => void;
 }
 
 export function ChatFeed({
-  messages,
-  setMessages,
-  handleEditSubmit,
-  setActiveArtifact,
-  setExportModalOpen,
-  sharingJobId,
-  handleShareSingleMessage,
-  handleRegenerate,
-  handlePartialRegenerate,
-  handleFeedback,
-  stopJob,
-  setFontTargetMessageId,
-  setFontTargetSection,
   fontFileInputRef,
   messagesEndRef,
-  setPreviewImage
 }: ChatFeedProps) {
   const [editingMsgId, setEditingMsgId] = useState<string | null>(null);
   const [editInput, setEditInput] = useState("");
+
+  const { user, session } = useAuth();
+  
+  const { 
+    setActiveArtifact, 
+    setExportModalOpen, 
+    sharingJobId, 
+    setPreviewImage 
+  } = useAppStore();
+  
+  const { 
+    messages, 
+    setMessages, 
+    setFontTargetMessageId, 
+    setFontTargetSection, 
+    stopJob,
+    fetchHistory
+  } = useChatStore();
+  
+  const { 
+    handleEditSubmit, 
+    handleShareSingleMessage, 
+    handleRegenerate, 
+    handlePartialRegenerate, 
+    handleFeedback 
+  } = useChatActions();
+
+  useJobPoller(messages, setMessages, session, () => fetchHistory(user));
 
   return (
     <div className="flex-1 overflow-y-auto px-4 md:px-8 pt-8 pb-10 space-y-10 font-sans custom-scrollbar">

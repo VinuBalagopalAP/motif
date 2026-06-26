@@ -1,5 +1,10 @@
 "use client";
-import { useChatEngine } from '@/hooks/useChatEngine';
+import React, { useRef, useEffect } from 'react';
+import { useParams, useRouter } from "next/navigation";
+import { useAuth } from '@/components/AuthProvider';
+import { useAppStore } from '@/store/useAppStore';
+import { useChatStore } from '@/store/useChatStore';
+import { useChatActions } from '@/hooks/useChatActions';
 
 import { ExportModal } from '@/components/modals/ExportModal';
 import { SharedLinksModal } from '@/components/modals/SharedLinksModal';
@@ -12,68 +17,113 @@ import { Sidebar } from '@/components/chat/Sidebar';
 import { Dashboard } from '@/components/Dashboard';
 import { ArtifactCanvas } from "@/components/ArtifactCanvas";
 
-
 export default function ChatApp() {
+  const params = useParams();
+  const router = useRouter();
+  const { user, loading: authLoading, session } = useAuth();
+  
   const {
-    user, authLoading,
-    messages, setMessages,
-    loading,
-    historyJobs,
+    activeView, setActiveView,
+    sidebarOpen, setSidebarOpen,
     mobileMenuOpen, setMobileMenuOpen,
     exportModalOpen, setExportModalOpen,
-    activeChatId, setActiveChatId,
-    attachments, setAttachments,
-    uploadingFiles,
+    sharedLinksModalOpen, setSharedLinksModalOpen,
     activeArtifact, setActiveArtifact,
     previewImage, setPreviewImage,
     toast, setToast,
-    activeView, setActiveView,
     feedbackModalState, setFeedbackModalState,
     feedbackReason, setFeedbackReason,
     sharingJobId,
-    sharedLinksModalOpen, setSharedLinksModalOpen,
     sharedLinks,
     loadingSharedLinks,
-    linkToDisable, setLinkToDisable,
-    settingsMenuOpen, setSettingsMenuOpen,
-    sidebarOpen, setSidebarOpen,
-    fileInputRef, messagesEndRef, fontFileInputRef,
-    setFontTargetMessageId, setFontTargetSection,
-    handleFontUpload,
-    deleteJob, stopJob, handleFeedback, submitFeedbackReason,
-    handleShareEntireChat, handleShareSingleMessage,
-    deleteSharedLink, handleFileChange, runGeneration,
-    handleEditSubmit, handleRegenerate,
-    handlePartialRegenerate, loadJob, handleLogout
-  } = useChatEngine();
+    linkToDisable, setLinkToDisable
+  } = useAppStore();
+
+  const { messages, historyJobs, loadJob, fetchHistory } = useChatStore();
+  const { handleShareEntireChat, submitFeedbackReason, deleteSharedLink, fetchSharedLinks } = useChatActions();
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const fontFileInputRef = useRef<HTMLInputElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const initialChatIdLoaded = useRef(false);
+  const prevMessagesLength = useRef(0);
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/login');
+    }
+  }, [user, authLoading, router]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === '\\') {
+        e.preventDefault();
+        setSidebarOpen(!sidebarOpen);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [sidebarOpen, setSidebarOpen]);
+
+  useEffect(() => {
+    if (sharedLinksModalOpen && session?.access_token) {
+      fetchSharedLinks();
+    }
+  }, [sharedLinksModalOpen, session?.access_token, fetchSharedLinks]);
+
+  useEffect(() => {
+    if (user) {
+      fetchHistory(user);
+    }
+  }, [user, fetchHistory]);
+
+  useEffect(() => {
+    if (user && historyJobs.length > 0 && !initialChatIdLoaded.current) {
+      const chatIdArray = params?.chatId as string[] | undefined;
+      if (chatIdArray && chatIdArray[0] === 'c' && chatIdArray[1]) {
+        const jobId = chatIdArray[1];
+        const job = historyJobs.find(j => j.id === jobId);
+        if (job) {
+          loadJob(job, setActiveView, setMobileMenuOpen);
+          initialChatIdLoaded.current = true;
+        } else {
+          window.history.replaceState(null, '', '/');
+        }
+      } else {
+        initialChatIdLoaded.current = true;
+      }
+    }
+  }, [user, historyJobs, params, loadJob, setActiveView, setMobileMenuOpen]);
+
+  useEffect(() => {
+    const isStreaming = messages.some(m => (m.job?.status as any) === 'Streaming text...');
+    if (isStreaming || messages.length > prevMessagesLength.current) {
+      const main = document.getElementById("chat-main");
+      if (main) {
+        main.scrollTo({ top: main.scrollHeight, behavior: "smooth" });
+      }
+    }
+    prevMessagesLength.current = messages.length;
+  }, [messages]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handler = (event: PromiseRejectionEvent) => {
+      if (event.reason && (event.reason.name === 'EncodingError' || (event.reason.message && event.reason.message.includes('EncodingError')))) {
+        event.preventDefault(); 
+      }
+    };
+    window.addEventListener('unhandledrejection', handler);
+    return () => window.removeEventListener('unhandledrejection', handler);
+  }, []);
 
   if (authLoading || !user) {
     return <div className="h-screen flex items-center justify-center bg-gray-50 text-gray-400">Loading workspace...</div>;
   }
 
-
-  const isGenerating = messages.some(m => m.jobId && m.job?.status !== 'done' && m.job?.status !== 'error');
-
   return (
     <div className="flex h-[100dvh] bg-[#ffffff] text-[#282828] font-sans selection:bg-[#c3f3b9]">
-      <Sidebar
-        user={user}
-        mobileMenuOpen={mobileMenuOpen}
-        setMobileMenuOpen={setMobileMenuOpen}
-        sidebarOpen={sidebarOpen}
-        setSidebarOpen={setSidebarOpen}
-        setActiveChatId={setActiveChatId}
-        setMessages={setMessages}
-        historyJobs={historyJobs}
-        loadJob={loadJob}
-        deleteJob={deleteJob}
-        settingsMenuOpen={settingsMenuOpen}
-        setSettingsMenuOpen={setSettingsMenuOpen}
-        setSharedLinksModalOpen={setSharedLinksModalOpen}
-        handleLogout={handleLogout}
-        activeView={activeView}
-        setActiveView={setActiveView}
-      />
+      <Sidebar />
 
       {/* Main Chat Area & Canvas Split Pane */}
       <div className="flex-1 flex min-w-0 relative bg-[#ffffff] overflow-hidden">
@@ -97,8 +147,7 @@ export default function ChatApp() {
         {/* Dashboard View */}
         <div className={`flex-1 w-full h-full overflow-hidden ${activeView === 'dashboard' ? 'block' : 'hidden'}`}>
           <Dashboard jobs={historyJobs} onSelectJob={(job, messageId) => { 
-            loadJob(job); 
-            setActiveView('chat'); 
+            loadJob(job, setActiveView, setMobileMenuOpen); 
             if (messageId) {
               setTimeout(() => {
                 const el = document.getElementById(`message-${messageId}`);
@@ -148,36 +197,14 @@ export default function ChatApp() {
 
           <main id="chat-main" className="flex-1 overflow-y-auto p-4 sm:p-6 pb-0" style={{ maskImage: 'linear-gradient(to bottom, black calc(100% - 120px), transparent 100%)', WebkitMaskImage: 'linear-gradient(to bottom, black calc(100% - 120px), transparent 100%)' }}>
             <ChatFeed
-              messages={messages}
-              setMessages={setMessages}
-              handleEditSubmit={handleEditSubmit}
-              setActiveArtifact={setActiveArtifact}
-              setExportModalOpen={setExportModalOpen}
-              sharingJobId={sharingJobId}
-              handleShareSingleMessage={handleShareSingleMessage}
-              handleRegenerate={handleRegenerate}
-              handlePartialRegenerate={handlePartialRegenerate}
-              handleFeedback={handleFeedback}
-              stopJob={stopJob}
-              setFontTargetMessageId={setFontTargetMessageId}
-              setFontTargetSection={setFontTargetSection}
               fontFileInputRef={fontFileInputRef}
               messagesEndRef={messagesEndRef}
-              setPreviewImage={setPreviewImage}
             />
           </main>
 
           <ChatInput
             fileInputRef={fileInputRef}
             fontFileInputRef={fontFileInputRef}
-            handleFileChange={handleFileChange}
-            handleFontUpload={handleFontUpload}
-            attachments={attachments}
-            setAttachments={setAttachments}
-            uploadingFiles={uploadingFiles}
-            loading={loading}
-            isGenerating={isGenerating}
-            runGeneration={runGeneration}
           />
         </div>
 

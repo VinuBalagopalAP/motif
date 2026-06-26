@@ -2,6 +2,13 @@
 
 All notable changes to the Motif UGC Video Generator will be documented in this file.
 
+## [1.14.0] - 2026-06-27
+
+### Changed
+- **Zustand State Refactor**: Successfully completed Phase 3 of the UI decomposition. Extracted all React state, context, and business logic out of the monolithic `useChatEngine.ts` and into atomic Zustand stores (`useAppStore` and `useChatStore`).
+- **Decoupled Architecture**: Refactored the core chat UI components (`page.tsx`, `Sidebar.tsx`, `ChatFeed.tsx`, `ChatInput.tsx`) to pull only their required slices of state directly from the Zustand stores.
+- **God Hook Deprecated**: Completely deleted the legacy `useChatEngine.ts` file, ensuring faster rendering cycles and better maintainability.
+
 ## [1.13.3] - 2026-06-27
 
 ### Changed
