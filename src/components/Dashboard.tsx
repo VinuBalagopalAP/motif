@@ -1,15 +1,16 @@
 import type { Job } from "@/types";
+import { useMemo } from "react";
 
-export function Dashboard({ jobs, onSelectJob }: { jobs: Job[], onSelectJob: (job: Job) => void }) {
+export function Dashboard({ jobs, onSelectJob }: { jobs: Job[], onSelectJob: (job: Job, messageId?: string) => void }) {
   const getFinalRenderSpec = (job: Job) => {
-    if (job.render_spec_json) return job.render_spec_json;
+    if (job.render_spec_json) return { spec: job.render_spec_json, messageId: `asst-${job.id}` };
     if (job.messages && job.messages.length > 0) {
       const sortedMessages = [...job.messages].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
       for (const msg of sortedMessages) {
         if (msg.variants && msg.variants.length > 0) {
           const lastVariant = msg.variants[msg.variants.length - 1];
           if (lastVariant.type === 'video' && lastVariant.render_spec) {
-            return lastVariant.render_spec;
+            return { spec: lastVariant.render_spec, messageId: msg.id };
           }
         }
       }
@@ -17,11 +18,13 @@ export function Dashboard({ jobs, onSelectJob }: { jobs: Job[], onSelectJob: (jo
     return null;
   };
 
-  const processedJobs = jobs.map(job => ({ ...job, final_spec: getFinalRenderSpec(job) }));
-  const completedJobs = processedJobs.filter(j => {
-    const url = j.final_spec?.background_video?.url || j.final_spec?.background_image?.url || j.final_spec?.background?.url;
-    return !!url;
-  });
+  const completedJobs = useMemo(() => {
+    const processedJobs = jobs.map(job => ({ ...job, final_spec_data: getFinalRenderSpec(job) }));
+    return processedJobs.filter(j => {
+      const url = j.final_spec_data?.spec?.background_video?.url || j.final_spec_data?.spec?.background_image?.url || j.final_spec_data?.spec?.background?.url;
+      return !!url;
+    });
+  }, [jobs]);
 
   return (
     <div className="flex-1 overflow-y-auto bg-[#f9f9fa] p-6 sm:p-10 h-full w-full">
@@ -44,13 +47,13 @@ export function Dashboard({ jobs, onSelectJob }: { jobs: Job[], onSelectJob: (jo
             {completedJobs.map(job => (
               <div 
                 key={job.id} 
-                onClick={() => onSelectJob(job)}
+                onClick={() => onSelectJob(job, job.final_spec_data?.messageId)}
                 className="group cursor-pointer bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 hover:shadow-xl hover:border-transparent hover:-translate-y-1 transition-all duration-300 flex flex-col"
               >
                 {/* Thumbnail */}
                 <div className="aspect-[9/16] w-full bg-gray-100 relative overflow-hidden">
                   {(() => {
-                    const spec = job.final_spec;
+                    const spec = job.final_spec_data?.spec;
                     const url = spec?.background_video?.url || spec?.background_image?.url || spec?.background?.url;
                     const isVideo = spec?.background?.type === 'video' || spec?.background_video?.url || url?.match(/\.(mp4|webm|mov)$/i);
                     

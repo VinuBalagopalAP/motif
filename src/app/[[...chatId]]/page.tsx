@@ -94,11 +94,26 @@ export default function ChatApp() {
           </button>
         )}
 
-        {/* Chat Feed or Dashboard */}
-        {activeView === 'dashboard' ? (
-          <Dashboard jobs={historyJobs} onSelectJob={(job) => { loadJob(job); setActiveView('chat'); }} />
-        ) : (
-          <div className={`flex flex-col min-w-0 h-full relative transition-all duration-300 ease-in-out ${activeArtifact ? 'w-full md:w-[45%] max-w-[600px] min-w-[350px] border-r border-gray-100 hidden md:flex flex-shrink-0' : 'w-full flex-1'}`}>
+        {/* Dashboard View */}
+        <div className={`flex-1 w-full h-full overflow-hidden ${activeView === 'dashboard' ? 'block' : 'hidden'}`}>
+          <Dashboard jobs={historyJobs} onSelectJob={(job, messageId) => { 
+            loadJob(job); 
+            setActiveView('chat'); 
+            if (messageId) {
+              setTimeout(() => {
+                const el = document.getElementById(`message-${messageId}`);
+                if (el) {
+                  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  el.classList.add('animate-pulse');
+                  setTimeout(() => el.classList.remove('animate-pulse'), 2000);
+                }
+              }, 300); // Wait for chat view to render
+            }
+          }} />
+        </div>
+
+        {/* Chat Feed View */}
+        <div className={`flex flex-col min-w-0 h-full relative transition-all duration-300 ease-in-out ${activeArtifact ? 'w-full md:w-[45%] max-w-[600px] min-w-[350px] border-r border-gray-100 hidden md:flex flex-shrink-0' : 'w-full flex-1'} ${activeView === 'dashboard' ? '!hidden' : ''}`}>
           <header className="relative py-3 px-4 sm:px-6 bg-[#ffffff] border-b border-gray-100 flex items-center justify-center sticky top-0 z-10 md:hidden h-[57px]">
             <button onClick={() => setMobileMenuOpen(true)} className="absolute left-4 sm:left-6 p-1 -ml-1 text-[#757575] hover:text-[#282828] transition-colors">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
@@ -165,7 +180,6 @@ export default function ChatApp() {
             runGeneration={runGeneration}
           />
         </div>
-        )}
 
         {/* Canvas Pane */}
         {activeArtifact && (

@@ -2,6 +2,13 @@
 
 All notable changes to the Motif UGC Video Generator will be documented in this file.
 
+## [1.13.1] - 2026-06-27
+
+### Fixed
+- **Dashboard Caching**: Converted the Dashboard layout rendering from conditional unmounting to CSS-based visibility toggling. This keeps video assets natively cached in the DOM, eliminating layout shifts and re-renders when toggling between chats and the dashboard.
+- **Deep Linking Navigation**: Enhanced the Dashboard routing architecture to instantly perform a smooth `scrollIntoView` anchor jump directly to the specific video message when a thumbnail is clicked, accompanied by a subtle pulse animation.
+- **Strict Video Filtering**: Patched the Dashboard `useMemo` filtering pipeline to strictly drop plain text-based chats, ensuring only fully generated UGC videos hit the showcase grid.
+
 ## [1.13.0] - 2026-06-27
 
 ### Added

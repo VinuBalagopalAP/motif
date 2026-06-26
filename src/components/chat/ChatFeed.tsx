@@ -70,7 +70,7 @@ export function ChatFeed({
           const activeRenderSpec = activeVariant ? activeVariant.render_spec : m.job?.render_spec_json;
 
           return (
-            <div key={m.id} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start w-full'}`}>
+            <div id={`message-${m.id}`} key={m.id} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start w-full'} transition-colors duration-500`}>
               <div className={`${m.role === 'user'
                 ? 'max-w-[80%] bg-[#f9f9fa] text-[#282828] rounded-[24px] px-6 py-4 font-medium text-sm border border-gray-100 shadow-sm'
                 : 'w-full'
