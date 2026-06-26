@@ -2,6 +2,16 @@
 
 All notable changes to the Motif UGC Video Generator will be documented in this file.
 
+## [1.13.3] - 2026-06-27
+
+### Changed
+- **Zero-Cost Polling (Phase 2)**: Completely migrated the frontend's heavy 2000ms HTTP polling mechanism to **Supabase Realtime WebSockets**. The client now idles entirely and only triggers a single API read when Supabase pushes a `postgres_changes` event. This effectively drops Vercel Serverless Function invocations for job status tracking to zero.
+
+## [1.13.2] - 2026-06-27
+
+### Fixed
+- **API Resilience & Key Rotation**: Implemented true round-robin API key rotation in `GeminiProvider`. The pipeline now intelligently catches `429 Too Many Requests` limit errors and seamlessly retries the generation using backup `.env` keys, effectively multiplying the free tier limits without dropping user requests.
+
 ## [1.13.1] - 2026-06-27
 
 ### Fixed

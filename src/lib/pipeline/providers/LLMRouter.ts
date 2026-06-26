@@ -20,11 +20,9 @@ export class LLMRouter {
     try {
       return await this.claude.generateJson(prompt);
     } catch (err: any) {
-      if (err.status === 401 || err.status === 403) {
-        CircuitBreaker.reportApiFailure(err.status);
-        return this.gemini.generateJson(prompt);
-      }
-      throw err;
+      CircuitBreaker.reportApiFailure(err.status);
+      console.warn(`Claude failed generateJson with status ${err.status}, instantly falling back to Gemini. Error:`, err.message);
+      return this.gemini.generateJson(prompt);
     }
   }
 
@@ -47,13 +45,10 @@ export class LLMRouter {
     try {
       yield* this.claude.streamChat(message, history, attachments, systemPrompt, userId, token, activeJobId);
     } catch (err: any) {
-      if (err.status === 401 || err.status === 403) {
-        CircuitBreaker.reportApiFailure(err.status);
-        yield { type: 'status', message: 'Switching model...' };
-        yield* this.gemini.streamChat(message, history, attachments, systemPrompt, userId, token, activeJobId);
-      } else {
-        throw err;
-      }
+      CircuitBreaker.reportApiFailure(err.status);
+      console.warn(`Claude failed streamChat with status ${err.status}, instantly falling back to Gemini. Error:`, err.message);
+      yield { type: 'status', message: 'Switching model...' };
+      yield* this.gemini.streamChat(message, history, attachments, systemPrompt, userId, token, activeJobId);
     }
   }
 }
