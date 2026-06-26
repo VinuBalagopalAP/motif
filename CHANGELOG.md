@@ -2,6 +2,11 @@
 
 All notable changes to the Motif UGC Video Generator will be documented in this file.
 
+## [1.13.0] - 2026-06-27
+
+### Added
+- **Video Dashboard Showcase**: Implemented a responsive grid dashboard to instantly view and manage all previously generated UGC videos. Accessible directly from the sidebar, it dynamically extracts and displays high-quality static image or looping video thumbnails based on the AI's final render specification, while strictly filtering out non-video text chats.
+
 ## [1.12.1] - 2026-06-27
 
 ### Fixed

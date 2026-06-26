@@ -62,7 +62,9 @@ Your chats are built for virality.
 - Manage your privacy using the built-in **Shared Links Dashboard** to copy URLs or revoke public access instantly.
 
 ### 📱 Responsive & Premium UI
-Built with **Tailwind CSS v4** to ensure rapid iteration and a robust design system. Features a beautiful, clean light-mode aesthetic, smooth micro-animations, glassmorphism elements, and full mobile-responsiveness (hiding the sidebar and adjusting controls natively). Includes a custom-designed Motif favicon.
+Built with **Tailwind CSS v4** to ensure rapid iteration and a robust design system. Features a beautiful, clean light-mode aesthetic, smooth micro-animations, glassmorphism elements, and full mobile-responsiveness (hiding the sidebar and adjusting controls natively). 
+- **Video Dashboard**: Includes a dedicated showcase grid that dynamically extracts high-quality thumbnails for all generated videos, making it easy to browse your historical creations visually without re-entering chat sessions.
+- **Custom Branding**: Includes a custom-designed Motif favicon.
 
 ---
 

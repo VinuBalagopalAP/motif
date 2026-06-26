@@ -15,6 +15,8 @@ interface SidebarProps {
   setSettingsMenuOpen: (open: boolean) => void;
   setSharedLinksModalOpen: (open: boolean) => void;
   handleLogout: () => void;
+  activeView: 'chat' | 'dashboard';
+  setActiveView: (view: 'chat' | 'dashboard') => void;
 }
 
 export function Sidebar({
@@ -31,7 +33,9 @@ export function Sidebar({
   settingsMenuOpen,
   setSettingsMenuOpen,
   setSharedLinksModalOpen,
-  handleLogout
+  handleLogout,
+  activeView,
+  setActiveView
 }: SidebarProps) {
   return (
     <>
@@ -68,13 +72,29 @@ export function Sidebar({
               <div className="w-4 hidden md:block"></div>
             </div>
             <button
-              onClick={() => { setActiveChatId(null); setMessages([]); setMobileMenuOpen(false); window.history.pushState(null, '', '/'); }}
+              onClick={() => { setActiveChatId(null); setActiveView('chat'); setMessages([]); setMobileMenuOpen(false); window.history.pushState(null, '', '/'); }}
               className="flex items-center justify-center gap-2 bg-[#08c225] hover:bg-[#00b33c] text-white rounded-[16px] px-4 py-3 font-semibold text-sm shadow-[0_4px_12px_rgba(8,194,37,0.2)] hover:shadow-[0_6px_16px_rgba(8,194,37,0.3)] transition-all duration-200"
             >
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
               </svg>
               New Chat
+            </button>
+          </div>
+
+          <div className="px-4 py-2">
+            <button
+              onClick={() => { setActiveView('dashboard'); setMobileMenuOpen(false); window.history.pushState(null, '', '/'); }}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 ${
+                activeView === 'dashboard' 
+                  ? 'bg-gray-200/80 text-[#282828] font-semibold' 
+                  : 'text-[#757575] hover:bg-gray-200/50 hover:text-[#282828] font-medium'
+              }`}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z" />
+              </svg>
+              Dashboard
             </button>
           </div>
 

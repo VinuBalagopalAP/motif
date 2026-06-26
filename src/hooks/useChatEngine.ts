@@ -44,6 +44,7 @@ export function useChatEngine() {
   const [activeArtifact, setActiveArtifact] = useState<ParsedArtifact | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [activeView, setActiveView] = useState<'chat' | 'dashboard'>('chat');
 
   // Phase 3 State
   const [feedbackModalState, setFeedbackModalState] = useState<{ isOpen: boolean; feedbackId: string; job_id: string; index: number; is_positive: boolean } | null>(null);
@@ -754,6 +755,7 @@ export function useChatEngine() {
   const loadJob = (job: Job) => {
     window.history.pushState(null, '', `/c/${job.id}`);
     setActiveChatId(job.id);
+    setActiveView('chat');
     setMessages(mapMessages(job));
     setMobileMenuOpen(false);
   };
@@ -776,6 +778,7 @@ export function useChatEngine() {
     activeArtifact, setActiveArtifact,
     previewImage, setPreviewImage,
     toast, setToast,
+    activeView, setActiveView,
     feedbackModalState, setFeedbackModalState,
     feedbackReason, setFeedbackReason,
     activeMenuId, setActiveMenuId,

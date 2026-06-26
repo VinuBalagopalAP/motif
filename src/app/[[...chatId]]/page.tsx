@@ -9,6 +9,7 @@ import { FeedbackModal } from '@/components/modals/FeedbackModal';
 import { ChatFeed } from '@/components/chat/ChatFeed';
 import { ChatInput } from '@/components/chat/ChatInput';
 import { Sidebar } from '@/components/chat/Sidebar';
+import { Dashboard } from '@/components/Dashboard';
 import { ArtifactCanvas } from "@/components/ArtifactCanvas";
 
 
@@ -26,6 +27,7 @@ export default function ChatApp() {
     activeArtifact, setActiveArtifact,
     previewImage, setPreviewImage,
     toast, setToast,
+    activeView, setActiveView,
     feedbackModalState, setFeedbackModalState,
     feedbackReason, setFeedbackReason,
     sharingJobId,
@@ -69,6 +71,8 @@ export default function ChatApp() {
         setSettingsMenuOpen={setSettingsMenuOpen}
         setSharedLinksModalOpen={setSharedLinksModalOpen}
         handleLogout={handleLogout}
+        activeView={activeView}
+        setActiveView={setActiveView}
       />
 
       {/* Main Chat Area & Canvas Split Pane */}
@@ -90,8 +94,11 @@ export default function ChatApp() {
           </button>
         )}
 
-        {/* Chat Feed */}
-        <div className={`flex flex-col min-w-0 h-full relative transition-all duration-300 ease-in-out ${activeArtifact ? 'w-full md:w-[45%] max-w-[600px] min-w-[350px] border-r border-gray-100 hidden md:flex flex-shrink-0' : 'w-full flex-1'}`}>
+        {/* Chat Feed or Dashboard */}
+        {activeView === 'dashboard' ? (
+          <Dashboard jobs={historyJobs} onSelectJob={(job) => { loadJob(job); setActiveView('chat'); }} />
+        ) : (
+          <div className={`flex flex-col min-w-0 h-full relative transition-all duration-300 ease-in-out ${activeArtifact ? 'w-full md:w-[45%] max-w-[600px] min-w-[350px] border-r border-gray-100 hidden md:flex flex-shrink-0' : 'w-full flex-1'}`}>
           <header className="relative py-3 px-4 sm:px-6 bg-[#ffffff] border-b border-gray-100 flex items-center justify-center sticky top-0 z-10 md:hidden h-[57px]">
             <button onClick={() => setMobileMenuOpen(true)} className="absolute left-4 sm:left-6 p-1 -ml-1 text-[#757575] hover:text-[#282828] transition-colors">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
@@ -158,6 +165,7 @@ export default function ChatApp() {
             runGeneration={runGeneration}
           />
         </div>
+        )}
 
         {/* Canvas Pane */}
         {activeArtifact && (
